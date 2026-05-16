@@ -94,3 +94,48 @@ func TestRenderBadgesNotTruncatedWithColorProfile(t *testing.T) {
 		t.Fatalf("view contains truncated badge: %q", view)
 	}
 }
+
+func TestRenderWorktreeTableColorsRowsByBadge(t *testing.T) {
+	oldProfile := lipgloss.ColorProfile()
+	oldDark := lipgloss.HasDarkBackground()
+	lipgloss.SetColorProfile(termenv.TrueColor)
+	lipgloss.SetHasDarkBackground(true)
+	t.Cleanup(func() {
+		lipgloss.SetColorProfile(oldProfile)
+		lipgloss.SetHasDarkBackground(oldDark)
+	})
+
+	wts := []worktree.Worktree{
+		{Path: "/repo", Branch: "main"},
+		{Path: "/repo/wt/dirty", Branch: "dirty", Badges: []worktree.Badge{worktree.BadgeDirty}},
+		{Path: "/repo/wt/primary", Branch: "main", Badges: []worktree.Badge{worktree.BadgePrimary, worktree.BadgeMerged}},
+	}
+	pathWidth, branchWidth := maxWorktreeWidths(wts)
+	badgesWidth := badgesVisibleWidth(wts)
+	cols, rows := worktreeLayout(wts, pathWidth, branchWidth, badgesWidth, 200)
+	tb := table.New(
+		table.WithColumns(cols),
+		table.WithRows(rows),
+		table.WithFocused(true),
+		table.WithStyles(worktreeTableStyles()),
+	)
+	view := renderWorktreeTable(tb, wts)
+	stripped := ansi.Strip(view)
+
+	for _, want := range []string{"[dirty]", "[primary] [merged]"} {
+		if !strings.Contains(stripped, want) {
+			t.Fatalf("view missing full badge %q: %q", want, stripped)
+		}
+	}
+	if strings.Contains(stripped, "[primar"+ellipsis) {
+		t.Fatalf("view contains truncated primary badge: %q", stripped)
+	}
+
+	lines := strings.Split(view, "\n")
+	if len(lines) < 3 {
+		t.Fatalf("view has too few lines: %q", view)
+	}
+	if !strings.Contains(lines[2], "\x1b[") {
+		t.Fatalf("dirty row is not styled: %q", lines[2])
+	}
+}

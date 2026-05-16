@@ -37,10 +37,11 @@ type Model struct {
 	repoTable   table.Model
 	repoMaxPath int
 
-	worktreeTable      table.Model
-	worktreeMaxPath    int
-	worktreeMaxBranch  int
-	worktreeMaxBadges  int
+	worktreeTable     table.Model
+	worktreeSorted    []worktree.Worktree
+	worktreeMaxPath   int
+	worktreeMaxBranch int
+	worktreeMaxBadges int
 
 	termWidth  int
 	termHeight int
@@ -130,7 +131,7 @@ func (m Model) worktreeView() string {
 	r := m.repos[m.selectedRepoIdx]
 	title := lipgloss.NewStyle().Bold(true).Render(fmt.Sprintf("wtm — worktrees in %s", r.Path))
 	help := lipgloss.NewStyle().Faint(true).Render("[↑/k] up  [↓/j] down  [esc] back  [q] quit")
-	return fmt.Sprintf("%s\n%s\n%s\n", title, m.worktreeTable.View(), help)
+	return fmt.Sprintf("%s\n%s\n%s\n", title, renderWorktreeTable(m.worktreeTable, m.worktreeSorted), help)
 }
 
 // enterWorktrees switches to Screen 2 for the repo at idx. The worktree
@@ -145,6 +146,7 @@ func (m Model) enterWorktrees(idx int) Model {
 		table.WithColumns(cols),
 		table.WithRows(rs),
 		table.WithFocused(true),
+		table.WithStyles(worktreeTableStyles()),
 	)
 	// Defer SetHeight until WindowSizeMsg has populated termHeight;
 	// otherwise the table would shrink to a single row before the first
@@ -153,6 +155,7 @@ func (m Model) enterWorktrees(idx int) Model {
 		t.SetHeight(max(1, m.termHeight-chromeRows))
 	}
 	m.worktreeTable = t
+	m.worktreeSorted = wts
 	m.worktreeMaxPath = maxPath
 	m.worktreeMaxBranch = maxBranch
 	m.worktreeMaxBadges = maxBadges
@@ -169,8 +172,7 @@ func (m *Model) refreshLayout() {
 		m.repoTable.SetRows(rs)
 		m.repoTable.SetHeight(max(1, m.termHeight-chromeRows))
 	case screenWorktrees:
-		wts := sortWorktrees(m.repos[m.selectedRepoIdx].Worktrees)
-		cols, rs := worktreeLayout(wts, m.worktreeMaxPath, m.worktreeMaxBranch, m.worktreeMaxBadges, m.termWidth)
+		cols, rs := worktreeLayout(m.worktreeSorted, m.worktreeMaxPath, m.worktreeMaxBranch, m.worktreeMaxBadges, m.termWidth)
 		m.worktreeTable.SetColumns(cols)
 		m.worktreeTable.SetRows(rs)
 		m.worktreeTable.SetHeight(max(1, m.termHeight-chromeRows))
