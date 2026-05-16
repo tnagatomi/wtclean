@@ -79,11 +79,50 @@ func load(path string) (Repo, error) {
 	if err != nil {
 		return Repo{}, err
 	}
+	wts := worktree.Parse(string(out))
+	populateCommitTimes(path, wts)
 	return Repo{
 		Path:      path,
-		Worktrees: worktree.Parse(string(out)),
+		Worktrees: wts,
 		LastFetch: fetchHeadMtime(path),
 	}, nil
+}
+
+// populateCommitTimes fills LastCommit for every worktree HEAD using a
+// single `git log --no-walk` invocation. One process per repo regardless of
+// worktree count, and SHA-keyed output handles detached HEADs naturally.
+// On any failure (corrupt HEAD, unknown SHA in the batch) the affected
+// worktrees keep their zero LastCommit so callers render a placeholder.
+func populateCommitTimes(repoPath string, wts []worktree.Worktree) {
+	var shas []string
+	for _, w := range wts {
+		if w.HEAD != "" {
+			shas = append(shas, w.HEAD)
+		}
+	}
+	if len(shas) == 0 {
+		return
+	}
+	args := append([]string{"-C", repoPath, "log", "--no-walk", "--pretty=%H %cI"}, shas...)
+	out, err := exec.Command("git", args...).Output()
+	if err != nil {
+		return
+	}
+	times := make(map[string]time.Time, len(shas))
+	for line := range strings.SplitSeq(strings.TrimRight(string(out), "\n"), "\n") {
+		sha, iso, ok := strings.Cut(line, " ")
+		if !ok {
+			continue
+		}
+		if t, err := time.Parse(time.RFC3339, iso); err == nil {
+			times[sha] = t
+		}
+	}
+	for i := range wts {
+		if t, ok := times[wts[i].HEAD]; ok {
+			wts[i].LastCommit = t
+		}
+	}
 }
 
 // fetchHeadMtime reads FETCH_HEAD's mtime. For a non-bare checkout it lives

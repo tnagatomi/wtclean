@@ -5,6 +5,8 @@ import (
 	"testing"
 	"time"
 
+	tea "github.com/charmbracelet/bubbletea"
+
 	"github.com/tnagatomi/wtm/internal/repo"
 	"github.com/tnagatomi/wtm/internal/worktree"
 )
@@ -52,6 +54,75 @@ func TestFormatTime(t *testing.T) {
 	at := time.Date(2026, 1, 2, 3, 4, 5, 0, time.UTC)
 	if got := formatTime(at); got != "2026-01-02 03:04:05" {
 		t.Errorf("got %q", got)
+	}
+}
+
+func TestSortWorktreesOldestFirst(t *testing.T) {
+	wts := []worktree.Worktree{
+		{Path: "/recent", LastCommit: time.Date(2026, 5, 17, 0, 0, 0, 0, time.UTC)},
+		{Path: "/zero"},
+		{Path: "/old", LastCommit: time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)},
+		{Path: "/middle", LastCommit: time.Date(2025, 6, 15, 0, 0, 0, 0, time.UTC)},
+	}
+	got := sortWorktrees(wts)
+	want := []string{"/zero", "/old", "/middle", "/recent"}
+	for i, w := range got {
+		if w.Path != want[i] {
+			t.Errorf("[%d] got %s, want %s", i, w.Path, want[i])
+		}
+	}
+}
+
+func TestEnterNavigatesToWorktreeScreen(t *testing.T) {
+	repos := []repo.Repo{{
+		Path: "/repo-a",
+		Worktrees: []worktree.Worktree{
+			{Path: "/repo-a", Branch: "main", LastCommit: time.Date(2026, 5, 1, 0, 0, 0, 0, time.UTC)},
+			{Path: "/repo-a/wt/feat", Branch: "feat-x", LastCommit: time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)},
+		},
+	}}
+	m := tea.Model(NewModel(repos))
+	m, _ = m.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	got := m.(Model)
+	if got.screen != screenWorktrees {
+		t.Fatalf("screen: got %v, want screenWorktrees", got.screen)
+	}
+	if got.selectedRepoIdx != 0 {
+		t.Errorf("selectedRepoIdx: got %d, want 0", got.selectedRepoIdx)
+	}
+	view := got.View()
+	if !strings.Contains(view, "/repo-a/wt/feat") {
+		t.Errorf("view missing worktree path: %q", view)
+	}
+	if !strings.Contains(view, "feat-x") {
+		t.Errorf("view missing branch: %q", view)
+	}
+	if !strings.Contains(view, "2026-01-01") {
+		t.Errorf("view missing last commit date: %q", view)
+	}
+}
+
+func TestEscReturnsToRepoScreen(t *testing.T) {
+	repos := []repo.Repo{{
+		Path: "/repo-a",
+		Worktrees: []worktree.Worktree{
+			{Path: "/repo-a", Branch: "main"},
+			{Path: "/repo-a/wt/feat", Branch: "feat-x"},
+		},
+	}}
+	m := tea.Model(NewModel(repos))
+	m, _ = m.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	m, _ = m.Update(tea.KeyMsg{Type: tea.KeyEsc})
+	if got := m.(Model).screen; got != screenRepos {
+		t.Errorf("screen after esc: got %v, want screenRepos", got)
+	}
+}
+
+func TestEnterIgnoredWhenNoRepos(t *testing.T) {
+	m := tea.Model(NewModel(nil))
+	m, _ = m.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	if got := m.(Model).screen; got != screenRepos {
+		t.Errorf("screen with no repos: got %v, want screenRepos", got)
 	}
 }
 

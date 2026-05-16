@@ -4,6 +4,7 @@ package worktree
 import (
 	"bufio"
 	"strings"
+	"time"
 )
 
 // Worktree describes a single entry from `git worktree list --porcelain`.
@@ -19,6 +20,11 @@ type Worktree struct {
 	LockReason     string
 	Prunable       bool
 	PrunableReason string
+
+	// LastCommit is the commit time of HEAD. Parse leaves it zero; the
+	// repo package populates it after parsing since porcelain output does
+	// not carry commit metadata.
+	LastCommit time.Time
 }
 
 // Parse reads the porcelain output of `git worktree list --porcelain` and
