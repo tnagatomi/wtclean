@@ -54,6 +54,7 @@ func NewModel(repos []repo.Repo) Model {
 		table.WithColumns(cols),
 		table.WithRows(rs),
 		table.WithFocused(true),
+		table.WithKeyMap(emacsTableKeyMap()),
 		table.WithWidth(tableWidth(cols)),
 	)
 	return Model{
@@ -151,6 +152,7 @@ func (m Model) enterWorktrees(idx int) Model {
 		table.WithColumns(cols),
 		table.WithRows(rs),
 		table.WithFocused(true),
+		table.WithKeyMap(emacsTableKeyMap()),
 		table.WithStyles(worktreeTableStyles()),
 		table.WithWidth(tableWidth(cols)),
 	)
