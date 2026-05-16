@@ -6,6 +6,8 @@ import (
 	"slices"
 	"strings"
 	"testing"
+
+	"github.com/goccy/go-yaml"
 )
 
 func TestLoad(t *testing.T) {
@@ -123,21 +125,26 @@ func TestDefaultPath(t *testing.T) {
 	})
 }
 
-func TestStarterContentParses(t *testing.T) {
-	home := t.TempDir()
-	t.Setenv("HOME", home)
-	path := filepath.Join(t.TempDir(), "config.yml")
-	if err := os.WriteFile(path, []byte(StarterContent), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	cfg, err := Load(path)
-	if err != nil {
-		t.Fatalf("starter content should parse: %v", err)
+func TestStarterContent(t *testing.T) {
+	var cfg Config
+	if err := yaml.Unmarshal([]byte(StarterContent), &cfg); err != nil {
+		t.Fatalf("starter content should be valid YAML: %v", err)
 	}
 	if cfg.MaxDepth != DefaultMaxDepth {
 		t.Errorf("starter MaxDepth: got %d, want %d", cfg.MaxDepth, DefaultMaxDepth)
 	}
-	if len(cfg.Roots) == 0 {
-		t.Error("starter should have at least one root")
+	if len(cfg.Roots) != 0 {
+		t.Errorf("starter should have empty roots, got %v", cfg.Roots)
+	}
+
+	// Loading the starter should fail with the empty-roots error so users
+	// know they must edit the file before wtm is usable.
+	path := filepath.Join(t.TempDir(), "config.yml")
+	if err := os.WriteFile(path, []byte(StarterContent), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	_, err := Load(path)
+	if err == nil || !strings.Contains(err.Error(), "no roots") {
+		t.Errorf("starter Load should report no roots, got: %v", err)
 	}
 }

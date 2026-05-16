@@ -78,8 +78,11 @@ const StarterContent = `# wtm configuration file.
 
 # Root directories to scan for git repositories.
 # Each root is walked recursively. Tilde (~) expands to your home directory.
-roots:
-  - "~/ghq"
+# Example:
+#   roots:
+#     - ~/src
+#     - ~/work
+roots: []
 
 # Maximum recursion depth from each root.
 max_depth: 5
