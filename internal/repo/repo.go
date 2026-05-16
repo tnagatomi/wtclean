@@ -3,6 +3,7 @@
 package repo
 
 import (
+	"iter"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -81,6 +82,7 @@ func load(path string) (Repo, error) {
 	}
 	wts := worktree.Parse(string(out))
 	populateCommitTimes(path, wts)
+	populateBadges(path, wts)
 	return Repo{
 		Path:      path,
 		Worktrees: wts,
@@ -109,7 +111,7 @@ func populateCommitTimes(repoPath string, wts []worktree.Worktree) {
 		return
 	}
 	times := make(map[string]time.Time, len(shas))
-	for line := range strings.SplitSeq(strings.TrimRight(string(out), "\n"), "\n") {
+	for line := range gitLines(out) {
 		sha, iso, ok := strings.Cut(line, " ")
 		if !ok {
 			continue
@@ -123,6 +125,13 @@ func populateCommitTimes(repoPath string, wts []worktree.Worktree) {
 			wts[i].LastCommit = t
 		}
 	}
+}
+
+// gitLines iterates over the non-empty newline-trimmed lines of git command
+// output. Centralizes the SplitSeq/TrimRight idiom shared by parsers in this
+// package.
+func gitLines(out []byte) iter.Seq[string] {
+	return strings.SplitSeq(strings.TrimRight(string(out), "\n"), "\n")
 }
 
 // fetchHeadMtime reads FETCH_HEAD's mtime. For a non-bare checkout it lives

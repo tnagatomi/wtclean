@@ -25,6 +25,44 @@ type Worktree struct {
 	// repo package populates it after parsing since porcelain output does
 	// not carry commit metadata.
 	LastCommit time.Time
+
+	// Badges summarize derived state (merged, dirty, etc.) for the UI.
+	// Parse leaves this nil; the repo package fills it after consulting
+	// the working tree, the default branch, and upstream tracking refs.
+	Badges []Badge
+}
+
+// Badge identifies a state callouts shown next to a worktree in the TUI.
+type Badge int
+
+const (
+	BadgePrimary Badge = iota
+	BadgeMerged
+	BadgeGone
+	BadgeDirty
+	BadgeUnpushed
+	BadgeLocked
+	BadgeMissing
+)
+
+func (b Badge) String() string {
+	switch b {
+	case BadgePrimary:
+		return "primary"
+	case BadgeMerged:
+		return "merged"
+	case BadgeGone:
+		return "gone"
+	case BadgeDirty:
+		return "dirty"
+	case BadgeUnpushed:
+		return "unpushed"
+	case BadgeLocked:
+		return "locked"
+	case BadgeMissing:
+		return "missing"
+	}
+	return ""
 }
 
 // Parse reads the porcelain output of `git worktree list --porcelain` and

@@ -34,12 +34,13 @@ type Model struct {
 	screen          screenID
 	selectedRepoIdx int
 
-	repoTable      table.Model
-	repoMaxPath    int
+	repoTable   table.Model
+	repoMaxPath int
 
 	worktreeTable      table.Model
 	worktreeMaxPath    int
 	worktreeMaxBranch  int
+	worktreeMaxBadges  int
 
 	termWidth  int
 	termHeight int
@@ -138,7 +139,8 @@ func (m Model) worktreeView() string {
 func (m Model) enterWorktrees(idx int) Model {
 	wts := sortWorktrees(m.repos[idx].Worktrees)
 	maxPath, maxBranch := maxWorktreeWidths(wts)
-	cols, rs := worktreeLayout(wts, maxPath, maxBranch, m.termWidth)
+	maxBadges := badgesVisibleWidth(wts)
+	cols, rs := worktreeLayout(wts, maxPath, maxBranch, maxBadges, m.termWidth)
 	t := table.New(
 		table.WithColumns(cols),
 		table.WithRows(rs),
@@ -153,6 +155,7 @@ func (m Model) enterWorktrees(idx int) Model {
 	m.worktreeTable = t
 	m.worktreeMaxPath = maxPath
 	m.worktreeMaxBranch = maxBranch
+	m.worktreeMaxBadges = maxBadges
 	m.selectedRepoIdx = idx
 	m.screen = screenWorktrees
 	return m
@@ -167,7 +170,7 @@ func (m *Model) refreshLayout() {
 		m.repoTable.SetHeight(max(1, m.termHeight-chromeRows))
 	case screenWorktrees:
 		wts := sortWorktrees(m.repos[m.selectedRepoIdx].Worktrees)
-		cols, rs := worktreeLayout(wts, m.worktreeMaxPath, m.worktreeMaxBranch, m.termWidth)
+		cols, rs := worktreeLayout(wts, m.worktreeMaxPath, m.worktreeMaxBranch, m.worktreeMaxBadges, m.termWidth)
 		m.worktreeTable.SetColumns(cols)
 		m.worktreeTable.SetRows(rs)
 		m.worktreeTable.SetHeight(max(1, m.termHeight-chromeRows))
@@ -217,20 +220,22 @@ func repoLayout(repos []repo.Repo, contentPathWidth, termWidth int) ([]table.Col
 
 // worktreeLayout sizes Path and Branch to their longest content, capped by
 // the terminal width. When clamping is needed, Path absorbs the reduction
-// first since it is typically the longest field.
-func worktreeLayout(wts []worktree.Worktree, contentPathWidth, contentBranchWidth, termWidth int) ([]table.Column, []table.Row) {
+// first since it is typically the longest field. Badges and Last commit
+// keep their natural widths since their content is fixed-shape.
+func worktreeLayout(wts []worktree.Worktree, contentPathWidth, contentBranchWidth, contentBadgesWidth, termWidth int) ([]table.Column, []table.Row) {
 	const (
 		timeWidth = len(timeLayout)
-		padding   = 8
+		padding   = 10
 		minPath   = 20
 		minBranch = 6
 	)
 	pathWidth := contentPathWidth
 	branchWidth := contentBranchWidth
+	// Badges are never clamped — their value is the whole point of the
+	// column. Path absorbs any reduction first, then Branch, when the
+	// terminal cannot fit Path's natural width.
 	if termWidth > 0 {
-		// Path absorbs the reduction first; if that pushes it below
-		// minPath, freeze Path at the floor and shrink Branch instead.
-		available := termWidth - timeWidth - padding
+		available := termWidth - timeWidth - contentBadgesWidth - padding
 		if pathWidth+branchWidth > available {
 			pathWidth = available - branchWidth
 			if pathWidth < minPath {
@@ -245,6 +250,7 @@ func worktreeLayout(wts []worktree.Worktree, contentPathWidth, contentBranchWidt
 		{Title: "Path", Width: pathWidth},
 		{Title: "Branch", Width: branchWidth},
 		{Title: "Last commit", Width: timeWidth},
+		{Title: "Badges", Width: contentBadgesWidth},
 	}
 	rs := make([]table.Row, len(wts))
 	for i, w := range wts {
@@ -252,6 +258,7 @@ func worktreeLayout(wts []worktree.Worktree, contentPathWidth, contentBranchWidt
 			truncateHead(w.Path, pathWidth),
 			truncateHead(w.Branch, branchWidth),
 			formatTime(w.LastCommit),
+			renderBadges(w.Badges),
 		}
 	}
 	return cols, rs
