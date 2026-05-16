@@ -9,7 +9,7 @@ Status: Design (pre-implementation)
 
 ## Stack
 
-- **Go 1.22+**, module path `github.com/tnagatomi/wtm`
+- **Go 1.26.3**, module path `github.com/tnagatomi/wtm`
 - **bubbletea + bubbles + lipgloss** for the TUI
 - **cobra** for CLI dispatch
 - **BurntSushi/toml** for config parsing
