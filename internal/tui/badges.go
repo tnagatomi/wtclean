@@ -4,20 +4,30 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/charmbracelet/bubbles/table"
-	"github.com/charmbracelet/lipgloss"
+	"charm.land/bubbles/v2/table"
+	"charm.land/lipgloss/v2"
+	"charm.land/lipgloss/v2/compat"
 
 	"github.com/tnagatomi/wtm/internal/worktree"
 )
 
 var worktreeRowStyles = map[worktree.Badge]lipgloss.Style{
-	worktree.BadgePrimary:  lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "240", Dark: "245"}),
-	worktree.BadgeMerged:   lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "28", Dark: "82"}),
-	worktree.BadgeGone:     lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "130", Dark: "220"}),
-	worktree.BadgeDirty:    lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "160", Dark: "203"}),
-	worktree.BadgeUnpushed: lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "160", Dark: "203"}),
-	worktree.BadgeLocked:   lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "93", Dark: "141"}),
-	worktree.BadgeMissing:  lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "240", Dark: "245"}),
+	worktree.BadgePrimary:  lipgloss.NewStyle().Foreground(adaptive("240", "245")),
+	worktree.BadgeMerged:   lipgloss.NewStyle().Foreground(adaptive("28", "82")),
+	worktree.BadgeGone:     lipgloss.NewStyle().Foreground(adaptive("130", "220")),
+	worktree.BadgeDirty:    lipgloss.NewStyle().Foreground(adaptive("160", "203")),
+	worktree.BadgeUnpushed: lipgloss.NewStyle().Foreground(adaptive("160", "203")),
+	worktree.BadgeLocked:   lipgloss.NewStyle().Foreground(adaptive("93", "141")),
+	worktree.BadgeMissing:  lipgloss.NewStyle().Foreground(adaptive("240", "245")),
+}
+
+// adaptive returns a lipgloss color that resolves to light when the
+// terminal background is light and dark when it is dark. lipgloss v2
+// moved AdaptiveColor into the compat package and switched to typed
+// color.Color values, so palette declarations need the helper to stay
+// readable.
+func adaptive(light, dark string) compat.AdaptiveColor {
+	return compat.AdaptiveColor{Light: lipgloss.Color(light), Dark: lipgloss.Color(dark)}
 }
 
 // worktreeRowBadgePriority orders badges by how much each should dominate

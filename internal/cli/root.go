@@ -1,7 +1,7 @@
 package cli
 
 import (
-	tea "github.com/charmbracelet/bubbletea"
+	tea "charm.land/bubbletea/v2"
 	"github.com/spf13/cobra"
 
 	"github.com/tnagatomi/wtm/internal/config"
@@ -38,7 +38,7 @@ func runTUI(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	prog := tea.NewProgram(tui.NewModel(repos), tea.WithAltScreen())
+	prog := tea.NewProgram(tui.NewModel(repos))
 	_, err = prog.Run()
 	return err
 }
