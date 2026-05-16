@@ -3,6 +3,7 @@ package tui
 
 import (
 	"fmt"
+	"slices"
 	"time"
 
 	"github.com/charmbracelet/bubbles/table"
@@ -10,29 +11,54 @@ import (
 	"github.com/charmbracelet/lipgloss"
 
 	"github.com/tnagatomi/wtm/internal/repo"
+	"github.com/tnagatomi/wtm/internal/worktree"
 )
 
 const (
 	timeLayout = "2006-01-02 15:04:05"
 	emptyTime  = "-"
 	ellipsis   = "…"
+	chromeRows = 4 // title + table header + help + trailing newline
+)
+
+type screenID int
+
+const (
+	screenRepos screenID = iota
+	screenWorktrees
 )
 
 type Model struct {
-	repos            []repo.Repo
-	table            table.Model
-	contentPathWidth int
+	repos []repo.Repo
+
+	screen          screenID
+	selectedRepoIdx int
+
+	repoTable      table.Model
+	repoMaxPath    int
+
+	worktreeTable      table.Model
+	worktreeMaxPath    int
+	worktreeMaxBranch  int
+
+	termWidth  int
+	termHeight int
 }
 
 func NewModel(repos []repo.Repo) Model {
-	cpw := maxPathWidth(repos)
-	cols, rs := layout(repos, cpw, 0)
+	repoMaxPath := maxRepoPathWidth(repos)
+	cols, rs := repoLayout(repos, repoMaxPath, 0)
 	t := table.New(
 		table.WithColumns(cols),
 		table.WithRows(rs),
 		table.WithFocused(true),
 	)
-	return Model{repos: repos, table: t, contentPathWidth: cpw}
+	return Model{
+		repos:       repos,
+		screen:      screenRepos,
+		repoTable:   t,
+		repoMaxPath: repoMaxPath,
+	}
 }
 
 func (m Model) Init() tea.Cmd { return nil }
@@ -40,92 +66,198 @@ func (m Model) Init() tea.Cmd { return nil }
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
-		cols, rs := layout(m.repos, m.contentPathWidth, msg.Width)
-		m.table.SetColumns(cols)
-		m.table.SetRows(rs)
-		// Header line, table header, help line, and a trailing newline
-		// each consume one row, so leave four rows for chrome.
-		m.table.SetHeight(max(1, msg.Height-4))
+		m.termWidth = msg.Width
+		m.termHeight = msg.Height
+		m.refreshLayout()
 		return m, nil
 	case tea.KeyMsg:
-		switch msg.String() {
-		case "q", "ctrl+c":
-			return m, tea.Quit
+		return m.handleKey(msg)
+	}
+	return m.delegateToTable(msg)
+}
+
+func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	switch msg.String() {
+	case "q", "ctrl+c":
+		return m, tea.Quit
+	}
+	switch m.screen {
+	case screenRepos:
+		if msg.String() == "enter" && len(m.repos) > 0 {
+			m = m.enterWorktrees(m.repoTable.Cursor())
+			return m, nil
+		}
+	case screenWorktrees:
+		if msg.String() == "esc" {
+			m.screen = screenRepos
+			return m, nil
 		}
 	}
+	return m.delegateToTable(msg)
+}
+
+func (m Model) delegateToTable(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmd tea.Cmd
-	m.table, cmd = m.table.Update(msg)
+	switch m.screen {
+	case screenRepos:
+		m.repoTable, cmd = m.repoTable.Update(msg)
+	case screenWorktrees:
+		m.worktreeTable, cmd = m.worktreeTable.Update(msg)
+	}
 	return m, cmd
 }
 
 func (m Model) View() string {
+	switch m.screen {
+	case screenWorktrees:
+		return m.worktreeView()
+	default:
+		return m.repoView()
+	}
+}
+
+func (m Model) repoView() string {
 	if len(m.repos) == 0 {
 		return "No repositories with linked worktrees found.\n\nPress q to quit.\n"
 	}
 	title := lipgloss.NewStyle().Bold(true).Render("wtm — repositories")
-	help := lipgloss.NewStyle().Faint(true).Render("[↑/k] up  [↓/j] down  [q] quit")
-	return fmt.Sprintf("%s\n%s\n%s\n", title, m.table.View(), help)
+	help := lipgloss.NewStyle().Faint(true).Render("[↑/k] up  [↓/j] down  [enter] open  [q] quit")
+	return fmt.Sprintf("%s\n%s\n%s\n", title, m.repoTable.View(), help)
 }
 
-// layout computes the table columns and rows for a given terminal width.
-// Both are recomputed together because the Path column's effective width
-// drives how individual path strings are truncated.
-func layout(repos []repo.Repo, contentPathWidth, termWidth int) ([]table.Column, []table.Row) {
-	cols := columns(termWidth, contentPathWidth)
-	return cols, rows(repos, cols[0].Width)
+func (m Model) worktreeView() string {
+	r := m.repos[m.selectedRepoIdx]
+	title := lipgloss.NewStyle().Bold(true).Render(fmt.Sprintf("wtm — worktrees in %s", r.Path))
+	help := lipgloss.NewStyle().Faint(true).Render("[↑/k] up  [↓/j] down  [esc] back  [q] quit")
+	return fmt.Sprintf("%s\n%s\n%s\n", title, m.worktreeTable.View(), help)
 }
 
-// columns sizes the Path column to fit the longest actual path rather than
-// expanding to fill the terminal — a full-terminal-wide table forces the
-// user's eyes to track across whitespace. The terminal width only acts as
-// an upper bound when the content would otherwise overflow.
-func columns(termWidth, contentPathWidth int) []table.Column {
+// enterWorktrees switches to Screen 2 for the repo at idx. The worktree
+// table is rebuilt from scratch on every entry so the column widths reflect
+// the selected repo's data rather than carrying over from a previous repo.
+func (m Model) enterWorktrees(idx int) Model {
+	wts := sortWorktrees(m.repos[idx].Worktrees)
+	maxPath, maxBranch := maxWorktreeWidths(wts)
+	cols, rs := worktreeLayout(wts, maxPath, maxBranch, m.termWidth)
+	t := table.New(
+		table.WithColumns(cols),
+		table.WithRows(rs),
+		table.WithFocused(true),
+	)
+	// Defer SetHeight until WindowSizeMsg has populated termHeight;
+	// otherwise the table would shrink to a single row before the first
+	// resize event arrives (and tests would not see any rows render).
+	if m.termHeight > 0 {
+		t.SetHeight(max(1, m.termHeight-chromeRows))
+	}
+	m.worktreeTable = t
+	m.worktreeMaxPath = maxPath
+	m.worktreeMaxBranch = maxBranch
+	m.selectedRepoIdx = idx
+	m.screen = screenWorktrees
+	return m
+}
+
+func (m *Model) refreshLayout() {
+	switch m.screen {
+	case screenRepos:
+		cols, rs := repoLayout(m.repos, m.repoMaxPath, m.termWidth)
+		m.repoTable.SetColumns(cols)
+		m.repoTable.SetRows(rs)
+		m.repoTable.SetHeight(max(1, m.termHeight-chromeRows))
+	case screenWorktrees:
+		wts := sortWorktrees(m.repos[m.selectedRepoIdx].Worktrees)
+		cols, rs := worktreeLayout(wts, m.worktreeMaxPath, m.worktreeMaxBranch, m.termWidth)
+		m.worktreeTable.SetColumns(cols)
+		m.worktreeTable.SetRows(rs)
+		m.worktreeTable.SetHeight(max(1, m.termHeight-chromeRows))
+	}
+}
+
+// sortWorktrees returns the worktrees ordered by HEAD commit time, oldest
+// first, so the most stale entries (the typical cleanup targets) appear at
+// the top. Worktrees with zero LastCommit (bare repos, lookup failures)
+// sort before everything else.
+func sortWorktrees(in []worktree.Worktree) []worktree.Worktree {
+	out := slices.Clone(in)
+	slices.SortFunc(out, func(a, b worktree.Worktree) int {
+		return a.LastCommit.Compare(b.LastCommit)
+	})
+	return out
+}
+
+// repoLayout sizes the Path column to the longest actual repo path. The
+// terminal width acts as an upper bound; under-cap, the column auto-fits.
+func repoLayout(repos []repo.Repo, contentPathWidth, termWidth int) ([]table.Column, []table.Row) {
 	const (
 		countWidth = 9
 		timeWidth  = len(timeLayout)
 		padding    = 6
 		minPath    = 20
 	)
-	pathWidth := contentPathWidth
-	if pathWidth < minPath {
-		pathWidth = minPath
-	}
+	pathWidth := max(contentPathWidth, minPath)
 	if termWidth > 0 {
-		available := termWidth - countWidth - timeWidth - padding
-		if pathWidth > available {
-			pathWidth = available
-		}
-		if pathWidth < minPath {
-			pathWidth = minPath
-		}
+		pathWidth = max(minPath, min(pathWidth, termWidth-countWidth-timeWidth-padding))
 	}
-	return []table.Column{
+	cols := []table.Column{
 		{Title: "Path", Width: pathWidth},
 		{Title: "Worktrees", Width: countWidth},
 		{Title: "Last fetch", Width: timeWidth},
 	}
-}
-
-func rows(repos []repo.Repo, pathWidth int) []table.Row {
-	out := make([]table.Row, len(repos))
+	rs := make([]table.Row, len(repos))
 	for i, r := range repos {
-		out[i] = table.Row{
+		rs[i] = table.Row{
 			truncateHead(r.Path, pathWidth),
 			fmt.Sprintf("%d", r.LinkedCount()),
 			formatTime(r.LastFetch),
 		}
 	}
-	return out
+	return cols, rs
 }
 
-func formatTime(t time.Time) string {
-	if t.IsZero() {
-		return emptyTime
+// worktreeLayout sizes Path and Branch to their longest content, capped by
+// the terminal width. When clamping is needed, Path absorbs the reduction
+// first since it is typically the longest field.
+func worktreeLayout(wts []worktree.Worktree, contentPathWidth, contentBranchWidth, termWidth int) ([]table.Column, []table.Row) {
+	const (
+		timeWidth = len(timeLayout)
+		padding   = 8
+		minPath   = 20
+		minBranch = 6
+	)
+	pathWidth := contentPathWidth
+	branchWidth := contentBranchWidth
+	if termWidth > 0 {
+		// Path absorbs the reduction first; if that pushes it below
+		// minPath, freeze Path at the floor and shrink Branch instead.
+		available := termWidth - timeWidth - padding
+		if pathWidth+branchWidth > available {
+			pathWidth = available - branchWidth
+			if pathWidth < minPath {
+				pathWidth = minPath
+				branchWidth = max(minBranch, available-pathWidth)
+			}
+		}
 	}
-	return t.Format(timeLayout)
+	pathWidth = max(pathWidth, minPath)
+	branchWidth = max(branchWidth, minBranch)
+	cols := []table.Column{
+		{Title: "Path", Width: pathWidth},
+		{Title: "Branch", Width: branchWidth},
+		{Title: "Last commit", Width: timeWidth},
+	}
+	rs := make([]table.Row, len(wts))
+	for i, w := range wts {
+		rs[i] = table.Row{
+			truncateHead(w.Path, pathWidth),
+			truncateHead(w.Branch, branchWidth),
+			formatTime(w.LastCommit),
+		}
+	}
+	return cols, rs
 }
 
-func maxPathWidth(repos []repo.Repo) int {
+func maxRepoPathWidth(repos []repo.Repo) int {
 	w := len("Path")
 	for _, r := range repos {
 		if l := len([]rune(r.Path)); l > w {
@@ -133,6 +265,27 @@ func maxPathWidth(repos []repo.Repo) int {
 		}
 	}
 	return w
+}
+
+func maxWorktreeWidths(wts []worktree.Worktree) (path, branch int) {
+	path = len("Path")
+	branch = len("Branch")
+	for _, w := range wts {
+		if l := len([]rune(w.Path)); l > path {
+			path = l
+		}
+		if l := len([]rune(w.Branch)); l > branch {
+			branch = l
+		}
+	}
+	return
+}
+
+func formatTime(t time.Time) string {
+	if t.IsZero() {
+		return emptyTime
+	}
+	return t.Format(timeLayout)
 }
 
 // truncateHead returns s clipped to width runes, replacing the leading
