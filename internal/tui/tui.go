@@ -15,20 +15,24 @@ import (
 const (
 	timeLayout = "2006-01-02 15:04:05"
 	emptyTime  = "-"
+	ellipsis   = "…"
 )
 
 type Model struct {
-	repos []repo.Repo
-	table table.Model
+	repos            []repo.Repo
+	table            table.Model
+	contentPathWidth int
 }
 
 func NewModel(repos []repo.Repo) Model {
+	cpw := maxPathWidth(repos)
+	cols, rs := layout(repos, cpw, 0)
 	t := table.New(
-		table.WithColumns(columns(0)),
-		table.WithRows(rows(repos)),
+		table.WithColumns(cols),
+		table.WithRows(rs),
 		table.WithFocused(true),
 	)
-	return Model{repos: repos, table: t}
+	return Model{repos: repos, table: t, contentPathWidth: cpw}
 }
 
 func (m Model) Init() tea.Cmd { return nil }
@@ -36,7 +40,9 @@ func (m Model) Init() tea.Cmd { return nil }
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
-		m.table.SetColumns(columns(msg.Width))
+		cols, rs := layout(m.repos, m.contentPathWidth, msg.Width)
+		m.table.SetColumns(cols)
+		m.table.SetRows(rs)
 		// Header line, table header, help line, and a trailing newline
 		// each consume one row, so leave four rows for chrome.
 		m.table.SetHeight(max(1, msg.Height-4))
@@ -61,24 +67,36 @@ func (m Model) View() string {
 	return fmt.Sprintf("%s\n%s\n%s\n", title, m.table.View(), help)
 }
 
-// columns sizes the path column to fill the remaining terminal width. Before
-// the first WindowSizeMsg, width is 0 and we fall back to a generous default
-// so the initial render is readable. For narrow terminals we clamp to a
-// minimum rather than overflowing.
-func columns(width int) []table.Column {
+// layout computes the table columns and rows for a given terminal width.
+// Both are recomputed together because the Path column's effective width
+// drives how individual path strings are truncated.
+func layout(repos []repo.Repo, contentPathWidth, termWidth int) ([]table.Column, []table.Row) {
+	cols := columns(termWidth, contentPathWidth)
+	return cols, rows(repos, cols[0].Width)
+}
+
+// columns sizes the Path column to fit the longest actual path rather than
+// expanding to fill the terminal — a full-terminal-wide table forces the
+// user's eyes to track across whitespace. The terminal width only acts as
+// an upper bound when the content would otherwise overflow.
+func columns(termWidth, contentPathWidth int) []table.Column {
 	const (
-		countWidth = 12
+		countWidth = 9
 		timeWidth  = len(timeLayout)
 		padding    = 6
+		minPath    = 20
 	)
-	var pathWidth int
-	switch {
-	case width == 0:
-		pathWidth = 80
-	default:
-		pathWidth = width - countWidth - timeWidth - padding
-		if pathWidth < 20 {
-			pathWidth = 20
+	pathWidth := contentPathWidth
+	if pathWidth < minPath {
+		pathWidth = minPath
+	}
+	if termWidth > 0 {
+		available := termWidth - countWidth - timeWidth - padding
+		if pathWidth > available {
+			pathWidth = available
+		}
+		if pathWidth < minPath {
+			pathWidth = minPath
 		}
 	}
 	return []table.Column{
@@ -88,11 +106,11 @@ func columns(width int) []table.Column {
 	}
 }
 
-func rows(repos []repo.Repo) []table.Row {
+func rows(repos []repo.Repo, pathWidth int) []table.Row {
 	out := make([]table.Row, len(repos))
 	for i, r := range repos {
 		out[i] = table.Row{
-			r.Path,
+			truncateHead(r.Path, pathWidth),
 			fmt.Sprintf("%d", r.LinkedCount()),
 			formatTime(r.LastFetch),
 		}
@@ -105,4 +123,36 @@ func formatTime(t time.Time) string {
 		return emptyTime
 	}
 	return t.Format(timeLayout)
+}
+
+func maxPathWidth(repos []repo.Repo) int {
+	w := len("Path")
+	for _, r := range repos {
+		if l := len([]rune(r.Path)); l > w {
+			w = l
+		}
+	}
+	return w
+}
+
+// truncateHead returns s clipped to width runes, replacing the leading
+// portion with an ellipsis when truncation is needed. The repository name
+// at the tail of a path is the most informative segment, so we preserve it
+// at the cost of the shared home/root prefix.
+//
+// Width is measured in runes, which assumes single-cell glyphs. Paths with
+// East Asian wide characters can still overflow visually; if that becomes
+// an issue, swap to go-runewidth (already in the dependency graph).
+func truncateHead(s string, width int) string {
+	if width <= 0 {
+		return ""
+	}
+	runes := []rune(s)
+	if len(runes) <= width {
+		return s
+	}
+	if width == 1 {
+		return ellipsis
+	}
+	return ellipsis + string(runes[len(runes)-width+1:])
 }

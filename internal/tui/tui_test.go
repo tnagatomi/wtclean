@@ -54,3 +54,30 @@ func TestFormatTime(t *testing.T) {
 		t.Errorf("got %q", got)
 	}
 }
+
+func TestTruncateHead(t *testing.T) {
+	cases := []struct {
+		name  string
+		in    string
+		width int
+		want  string
+	}{
+		{"fits exactly", "/a/b/c", 6, "/a/b/c"},
+		{"under width", "/a/b/c", 10, "/a/b/c"},
+		{"truncates head with ellipsis", "/a/b/c", 5, ellipsis + "/b/c"},
+		{"narrow leaves only ellipsis and tail", "/a/b/c", 3, ellipsis + "/c"},
+		{"width 2 leaves ellipsis plus one rune", "/abcdef", 2, ellipsis + "f"},
+		{"width 1 returns ellipsis", "/a/b/c", 1, ellipsis},
+		{"width 0 returns empty", "/a/b/c", 0, ""},
+		{"empty input returns empty regardless of width", "", 5, ""},
+		{"multi-rune input is sliced by rune not byte", "/日本語/repo", 6, ellipsis + "/repo"},
+		{"preserves repository name at tail", "/Users/u/ghq/github.com/o/repo", 12, ellipsis + ".com/o/repo"},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			if got := truncateHead(c.in, c.width); got != c.want {
+				t.Errorf("truncateHead(%q, %d) = %q, want %q", c.in, c.width, got, c.want)
+			}
+		})
+	}
+}
