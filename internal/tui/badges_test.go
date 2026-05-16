@@ -4,10 +4,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/charmbracelet/bubbles/table"
-	"github.com/charmbracelet/lipgloss"
+	"charm.land/bubbles/v2/table"
+	"charm.land/lipgloss/v2/compat"
 	"github.com/charmbracelet/x/ansi"
-	"github.com/muesli/termenv"
 
 	"github.com/tnagatomi/wtm/internal/worktree"
 )
@@ -71,20 +70,13 @@ func TestBadgesVisibleWidthHasHeaderFloor(t *testing.T) {
 }
 
 func TestRenderBadgesNotTruncatedWithColorProfile(t *testing.T) {
-	oldProfile := lipgloss.ColorProfile()
-	oldDark := lipgloss.HasDarkBackground()
-	lipgloss.SetColorProfile(termenv.TrueColor)
-	lipgloss.SetHasDarkBackground(true)
-	t.Cleanup(func() {
-		lipgloss.SetColorProfile(oldProfile)
-		lipgloss.SetHasDarkBackground(oldDark)
-	})
+	withDarkBackground(t)
 
 	wts := []worktree.Worktree{
 		{Path: "/repo", Branch: "main", Badges: []worktree.Badge{worktree.BadgePrimary}},
 	}
 	cols, rows := worktreeLayout(wts, len("Path"), len("Branch"), badgesVisibleWidth(wts), 200)
-	tb := table.New(table.WithColumns(cols), table.WithRows(rows))
+	tb := table.New(table.WithColumns(cols), table.WithRows(rows), table.WithWidth(tableWidth(cols)))
 	view := ansi.Strip(tb.View())
 
 	if !strings.Contains(view, "[primary]") {
@@ -95,15 +87,19 @@ func TestRenderBadgesNotTruncatedWithColorProfile(t *testing.T) {
 	}
 }
 
+// withDarkBackground forces compat.HasDarkBackground = true for the duration
+// of the test so AdaptiveColor resolves to the Dark variant deterministically
+// regardless of the host terminal. lipgloss v2 styles always emit ANSI on
+// Render, so no separate color-profile override is needed.
+func withDarkBackground(t *testing.T) {
+	t.Helper()
+	old := compat.HasDarkBackground
+	compat.HasDarkBackground = true
+	t.Cleanup(func() { compat.HasDarkBackground = old })
+}
+
 func TestRenderWorktreeTableColorsRowsByBadge(t *testing.T) {
-	oldProfile := lipgloss.ColorProfile()
-	oldDark := lipgloss.HasDarkBackground()
-	lipgloss.SetColorProfile(termenv.TrueColor)
-	lipgloss.SetHasDarkBackground(true)
-	t.Cleanup(func() {
-		lipgloss.SetColorProfile(oldProfile)
-		lipgloss.SetHasDarkBackground(oldDark)
-	})
+	withDarkBackground(t)
 
 	wts := []worktree.Worktree{
 		{Path: "/repo", Branch: "main"},
@@ -118,6 +114,7 @@ func TestRenderWorktreeTableColorsRowsByBadge(t *testing.T) {
 		table.WithRows(rows),
 		table.WithFocused(true),
 		table.WithStyles(worktreeTableStyles()),
+		table.WithWidth(tableWidth(cols)),
 	)
 	view := renderWorktreeTable(tb, wts)
 	stripped := ansi.Strip(view)

@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	tea "github.com/charmbracelet/bubbletea"
+	tea "charm.land/bubbletea/v2"
 
 	"github.com/tnagatomi/wtm/internal/repo"
 	"github.com/tnagatomi/wtm/internal/worktree"
@@ -13,7 +13,7 @@ import (
 
 func TestViewEmpty(t *testing.T) {
 	m := NewModel(nil)
-	view := m.View()
+	view := m.View().Content
 	if !strings.Contains(view, "No repositories") {
 		t.Errorf("empty view missing message: %q", view)
 	}
@@ -32,7 +32,7 @@ func TestViewListsRepos(t *testing.T) {
 		},
 	}
 	m := NewModel(repos)
-	view := m.View()
+	view := m.View().Content
 	if !strings.Contains(view, "/home/u/alpha") {
 		t.Errorf("view missing alpha repo: %q", view)
 	}
@@ -82,7 +82,7 @@ func TestEnterNavigatesToWorktreeScreen(t *testing.T) {
 		},
 	}}
 	m := tea.Model(NewModel(repos))
-	m, _ = m.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	m, _ = m.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
 	got := m.(Model)
 	if got.screen != screenWorktrees {
 		t.Fatalf("screen: got %v, want screenWorktrees", got.screen)
@@ -90,7 +90,7 @@ func TestEnterNavigatesToWorktreeScreen(t *testing.T) {
 	if got.selectedRepoIdx != 0 {
 		t.Errorf("selectedRepoIdx: got %d, want 0", got.selectedRepoIdx)
 	}
-	view := got.View()
+	view := got.View().Content
 	if !strings.Contains(view, "/repo-a/wt/feat") {
 		t.Errorf("view missing worktree path: %q", view)
 	}
@@ -111,8 +111,8 @@ func TestEscReturnsToRepoScreen(t *testing.T) {
 		},
 	}}
 	m := tea.Model(NewModel(repos))
-	m, _ = m.Update(tea.KeyMsg{Type: tea.KeyEnter})
-	m, _ = m.Update(tea.KeyMsg{Type: tea.KeyEsc})
+	m, _ = m.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
+	m, _ = m.Update(tea.KeyPressMsg{Code: tea.KeyEsc})
 	if got := m.(Model).screen; got != screenRepos {
 		t.Errorf("screen after esc: got %v, want screenRepos", got)
 	}
@@ -120,7 +120,7 @@ func TestEscReturnsToRepoScreen(t *testing.T) {
 
 func TestEnterIgnoredWhenNoRepos(t *testing.T) {
 	m := tea.Model(NewModel(nil))
-	m, _ = m.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	m, _ = m.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
 	if got := m.(Model).screen; got != screenRepos {
 		t.Errorf("screen with no repos: got %v, want screenRepos", got)
 	}

@@ -6,9 +6,9 @@ import (
 	"slices"
 	"time"
 
-	"github.com/charmbracelet/bubbles/table"
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
+	"charm.land/bubbles/v2/table"
+	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 
 	"github.com/tnagatomi/wtm/internal/repo"
 	"github.com/tnagatomi/wtm/internal/worktree"
@@ -54,6 +54,7 @@ func NewModel(repos []repo.Repo) Model {
 		table.WithColumns(cols),
 		table.WithRows(rs),
 		table.WithFocused(true),
+		table.WithWidth(tableWidth(cols)),
 	)
 	return Model{
 		repos:       repos,
@@ -72,13 +73,13 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.termHeight = msg.Height
 		m.refreshLayout()
 		return m, nil
-	case tea.KeyMsg:
+	case tea.KeyPressMsg:
 		return m.handleKey(msg)
 	}
 	return m.delegateToTable(msg)
 }
 
-func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+func (m Model) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	switch msg.String() {
 	case "q", "ctrl+c":
 		return m, tea.Quit
@@ -109,13 +110,17 @@ func (m Model) delegateToTable(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, cmd
 }
 
-func (m Model) View() string {
+func (m Model) View() tea.View {
+	var content string
 	switch m.screen {
 	case screenWorktrees:
-		return m.worktreeView()
+		content = m.worktreeView()
 	default:
-		return m.repoView()
+		content = m.repoView()
 	}
+	v := tea.NewView(content)
+	v.AltScreen = true
+	return v
 }
 
 func (m Model) repoView() string {
@@ -147,6 +152,7 @@ func (m Model) enterWorktrees(idx int) Model {
 		table.WithRows(rs),
 		table.WithFocused(true),
 		table.WithStyles(worktreeTableStyles()),
+		table.WithWidth(tableWidth(cols)),
 	)
 	// Defer SetHeight until WindowSizeMsg has populated termHeight;
 	// otherwise the table would shrink to a single row before the first
@@ -170,11 +176,13 @@ func (m *Model) refreshLayout() {
 		cols, rs := repoLayout(m.repos, m.repoMaxPath, m.termWidth)
 		m.repoTable.SetColumns(cols)
 		m.repoTable.SetRows(rs)
+		m.repoTable.SetWidth(tableWidth(cols))
 		m.repoTable.SetHeight(max(1, m.termHeight-chromeRows))
 	case screenWorktrees:
 		cols, rs := worktreeLayout(m.worktreeSorted, m.worktreeMaxPath, m.worktreeMaxBranch, m.worktreeMaxBadges, m.termWidth)
 		m.worktreeTable.SetColumns(cols)
 		m.worktreeTable.SetRows(rs)
+		m.worktreeTable.SetWidth(tableWidth(cols))
 		m.worktreeTable.SetHeight(max(1, m.termHeight-chromeRows))
 	}
 }
@@ -264,6 +272,21 @@ func worktreeLayout(wts []worktree.Worktree, contentPathWidth, contentBranchWidt
 		}
 	}
 	return cols, rs
+}
+
+// tableWidth returns the natural viewport width needed to render every
+// column of cols in full, including bubbles/table's default per-cell
+// padding (one space on each side). bubbles/table v2 stores rows in an
+// internal viewport that produces no output when its width is zero, so
+// this width must be set explicitly at construction time and on every
+// layout refresh — otherwise the table renders only its header.
+func tableWidth(cols []table.Column) int {
+	const cellPadding = 2
+	w := 0
+	for _, c := range cols {
+		w += c.Width + cellPadding
+	}
+	return w
 }
 
 func maxRepoPathWidth(repos []repo.Repo) int {
