@@ -22,8 +22,10 @@ func TestLoad(t *testing.T) {
 		{
 			name: "valid with explicit max_depth",
 			content: `
-roots = ["/abs/path", "~/relative"]
-max_depth = 3
+roots:
+  - /abs/path
+  - ~/relative
+max_depth: 3
 `,
 			wantRoots:    []string{"/abs/path", filepath.Join(home, "relative")},
 			wantMaxDepth: 3,
@@ -31,7 +33,8 @@ max_depth = 3
 		{
 			name: "missing max_depth falls back to default",
 			content: `
-roots = ["/only"]
+roots:
+  - /only
 `,
 			wantRoots:    []string{"/only"},
 			wantMaxDepth: DefaultMaxDepth,
@@ -39,26 +42,27 @@ roots = ["/only"]
 		{
 			name: "tilde alone expands to home",
 			content: `
-roots = ["~"]
+roots:
+  - "~"
 `,
 			wantRoots:    []string{home},
 			wantMaxDepth: DefaultMaxDepth,
 		},
 		{
 			name:    "empty roots errors",
-			content: `max_depth = 4`,
+			content: `max_depth: 4`,
 			wantErr: "no roots",
 		},
 		{
-			name:    "invalid toml errors",
-			content: `roots = [unterminated`,
+			name:    "invalid yaml errors",
+			content: "roots: [unterminated\n",
 			wantErr: "parse",
 		},
 	}
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			path := filepath.Join(t.TempDir(), "config.toml")
+			path := filepath.Join(t.TempDir(), "config.yml")
 			if err := os.WriteFile(path, []byte(tc.content), 0o644); err != nil {
 				t.Fatal(err)
 			}
@@ -83,7 +87,7 @@ roots = ["~"]
 }
 
 func TestLoadMissingFile(t *testing.T) {
-	_, err := Load(filepath.Join(t.TempDir(), "nonexistent.toml"))
+	_, err := Load(filepath.Join(t.TempDir(), "nonexistent.yml"))
 	if err == nil {
 		t.Fatal("expected error for missing file")
 	}
@@ -99,7 +103,7 @@ func TestDefaultPath(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		want := "/custom/xdg/wtm/config.toml"
+		want := "/custom/xdg/wtm/config.yml"
 		if got != want {
 			t.Errorf("got %q, want %q", got, want)
 		}
@@ -112,7 +116,7 @@ func TestDefaultPath(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		want := "/home/test/.config/wtm/config.toml"
+		want := "/home/test/.config/wtm/config.yml"
 		if got != want {
 			t.Errorf("got %q, want %q", got, want)
 		}
@@ -122,7 +126,7 @@ func TestDefaultPath(t *testing.T) {
 func TestStarterContentParses(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("HOME", home)
-	path := filepath.Join(t.TempDir(), "config.toml")
+	path := filepath.Join(t.TempDir(), "config.yml")
 	if err := os.WriteFile(path, []byte(StarterContent), 0o644); err != nil {
 		t.Fatal(err)
 	}
@@ -137,4 +141,3 @@ func TestStarterContentParses(t *testing.T) {
 		t.Error("starter should have at least one root")
 	}
 }
-

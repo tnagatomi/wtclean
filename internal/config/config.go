@@ -8,14 +8,14 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/BurntSushi/toml"
+	"github.com/goccy/go-yaml"
 )
 
 const DefaultMaxDepth = 5
 
 type Config struct {
-	Roots    []string `toml:"roots"`
-	MaxDepth int      `toml:"max_depth"`
+	Roots    []string `yaml:"roots"`
+	MaxDepth int      `yaml:"max_depth"`
 }
 
 // DefaultPath returns the canonical config file path, honoring XDG_CONFIG_HOME.
@@ -23,23 +23,27 @@ type Config struct {
 // spec explicitly avoids, so we resolve XDG ourselves.
 func DefaultPath() (string, error) {
 	if x := os.Getenv("XDG_CONFIG_HOME"); x != "" {
-		return filepath.Join(x, "wtm", "config.toml"), nil
+		return filepath.Join(x, "wtm", "config.yml"), nil
 	}
 	home, err := os.UserHomeDir()
 	if err != nil {
 		return "", err
 	}
-	return filepath.Join(home, ".config", "wtm", "config.toml"), nil
+	return filepath.Join(home, ".config", "wtm", "config.yml"), nil
 }
 
 // Load reads and validates the config file at path. Tilde-prefixed roots are
 // expanded to absolute paths. Missing max_depth falls back to DefaultMaxDepth.
 func Load(path string) (*Config, error) {
-	var cfg Config
-	if _, err := toml.DecodeFile(path, &cfg); err != nil {
+	data, err := os.ReadFile(path)
+	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
 			return nil, fmt.Errorf("config file not found at %q: run `wtm init` to generate a starter file", path)
 		}
+		return nil, fmt.Errorf("read %q: %w", path, err)
+	}
+	var cfg Config
+	if err := yaml.Unmarshal(data, &cfg); err != nil {
 		return nil, fmt.Errorf("parse %q: %w", path, err)
 	}
 	if len(cfg.Roots) == 0 {
@@ -74,10 +78,9 @@ const StarterContent = `# wtm configuration file.
 
 # Root directories to scan for git repositories.
 # Each root is walked recursively. Tilde (~) expands to your home directory.
-roots = [
-  "~/ghq",
-]
+roots:
+  - "~/ghq"
 
 # Maximum recursion depth from each root.
-max_depth = 5
+max_depth: 5
 `

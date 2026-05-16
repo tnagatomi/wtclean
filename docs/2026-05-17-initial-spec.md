@@ -12,7 +12,7 @@ Status: Design (pre-implementation)
 - **Go 1.26.3**, module path `github.com/tnagatomi/wtm`
 - **bubbletea + bubbles + lipgloss** for the TUI
 - **cobra** for CLI dispatch
-- **BurntSushi/toml** for config parsing
+- **goccy/go-yaml** for config parsing
 - License: **MIT**
 
 ## Discovery
@@ -29,13 +29,15 @@ Status: Design (pre-implementation)
 
 ## Configuration
 
-- Location: `~/.config/wtm/config.toml` (XDG-compliant).
+- Location: `~/.config/wtm/config.yml` (XDG-compliant).
 - A `wtm init` subcommand generates a starter file.
 - Schema (MVP):
 
-```toml
-roots = ["~/ghq", "~/work"]
-max_depth = 5
+```yaml
+roots:
+  - ~/ghq
+  - ~/work
+max_depth: 5
 ```
 
 Excluded from MVP: exclude patterns, glob roots, sort keys, color themes, custom default branch names.
