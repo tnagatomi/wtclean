@@ -13,7 +13,7 @@ func TestEmacsKeysMoveRepoTable(t *testing.T) {
 	repos := []repo.Repo{
 		{Path: "/r/a"}, {Path: "/r/b"}, {Path: "/r/c"}, {Path: "/r/d"},
 	}
-	m := tea.Model(NewModel(repos))
+	m := tea.Model(NewModel(repos, ModelOptions{}))
 	m, _ = m.Update(tea.KeyPressMsg{Code: 'n', Mod: tea.ModCtrl})
 	m, _ = m.Update(tea.KeyPressMsg{Code: 'n', Mod: tea.ModCtrl})
 	if got := m.(Model).repoTable.Cursor(); got != 2 {
@@ -34,7 +34,7 @@ func TestEmacsKeysMoveWorktreeTable(t *testing.T) {
 			{Path: "/repo/wt/b", Branch: "b"},
 		},
 	}}
-	m := tea.Model(NewModel(repos))
+	m := tea.Model(NewModel(repos, ModelOptions{}))
 	m, _ = m.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
 	m, _ = m.Update(tea.KeyPressMsg{Code: 'n', Mod: tea.ModCtrl})
 	m, _ = m.Update(tea.KeyPressMsg{Code: 'n', Mod: tea.ModCtrl})
@@ -52,7 +52,7 @@ func TestEmacsPageKeysAdvanceMoreThanOneRow(t *testing.T) {
 	for i := range repos {
 		repos[i] = repo.Repo{Path: "/r"}
 	}
-	m := tea.Model(NewModel(repos))
+	m := tea.Model(NewModel(repos, ModelOptions{}))
 	// Constrain the viewport so page motion is well-defined; without a
 	// non-zero height the table treats every move as a single row.
 	m, _ = m.Update(tea.WindowSizeMsg{Width: 80, Height: 10})

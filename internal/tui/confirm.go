@@ -10,6 +10,7 @@ import (
 	"github.com/tnagatomi/wtm/internal/deleter"
 	"github.com/tnagatomi/wtm/internal/repo"
 	"github.com/tnagatomi/wtm/internal/worktree"
+	"github.com/tnagatomi/wtm/internal/wtmlog"
 )
 
 // deleteCompleteMsg is dispatched from the goroutine that runs the
@@ -87,14 +88,33 @@ func (m Model) deleteCmd() tea.Cmd {
 // reflects the post-deletion state, then re-enters Screen 2 (which
 // clears the selection and filter as a side-effect of enterWorktrees).
 // Reload failures keep the stale repo data — the user can re-enter the
-// repo from Screen 1 to retry.
-func (m Model) applyDeleteResult(msg deleteCompleteMsg) Model {
+// repo from Screen 1 to retry. Any deleter failures are also pushed to
+// the wtmlog file via the returned Cmd so the user can inspect the
+// full per-op error text later.
+func (m Model) applyDeleteResult(msg deleteCompleteMsg) (Model, tea.Cmd) {
 	if r, err := repo.Load(m.repos[m.selectedRepoIdx].Path); err == nil {
 		m.repos[m.selectedRepoIdx] = r
 	}
 	m = m.enterWorktrees(m.selectedRepoIdx)
 	m.deleteFailures = msg.failures
-	return m
+	return m, logDeleteFailuresCmd(msg.failures)
+}
+
+// logDeleteFailuresCmd returns a tea.Cmd that appends a one-line
+// record per Failure to the wtmlog file. Log write errors are silently
+// swallowed — the log is the failure-detail sink, so a broken sink has
+// nowhere meaningful to report. Returns nil when there are no
+// failures so the bubbletea runtime has nothing to dispatch.
+func logDeleteFailuresCmd(failures []deleter.Failure) tea.Cmd {
+	if len(failures) == 0 {
+		return nil
+	}
+	return func() tea.Msg {
+		for _, f := range failures {
+			_ = wtmlog.Append(fmt.Sprintf("delete:%s %s: %v", f.Op, f.Path, f.Err))
+		}
+		return nil
+	}
 }
 
 func (m Model) confirmDeleteView() string {
@@ -122,7 +142,7 @@ func (m Model) confirmDeleteView() string {
 			}
 		}
 	}
-	help := faintStyle.Render("[y] Confirm    [n] Cancel    [space] toggle branches")
+	help := faintStyle.Render("[y] Confirm    [n] Cancel    [space] toggle branches    [?] help")
 	fmt.Fprintf(&b, "\n%s\n", help)
 	return b.String()
 }

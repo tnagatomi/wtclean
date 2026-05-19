@@ -34,11 +34,15 @@ func runTUI(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	repos, err := repo.Discover(cfg.Roots, cfg.MaxDepth)
+	repos, totalScanned, err := repo.Discover(cfg.Roots, cfg.MaxDepth)
 	if err != nil {
 		return err
 	}
-	prog := tea.NewProgram(tui.NewModel(repos))
+	prog := tea.NewProgram(tui.NewModel(repos, tui.ModelOptions{
+		ConfigPath:   path,
+		ConfigRoots:  cfg.Roots,
+		TotalScanned: totalScanned,
+	}))
 	_, err = prog.Run()
 	return err
 }
