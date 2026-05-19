@@ -122,7 +122,7 @@ func (m Model) confirmDeleteView() string {
 			}
 		}
 	}
-	help := faintStyle.Render("[y] Confirm    [n] Cancel    [space] toggle branches")
+	help := faintStyle.Render("[y] Confirm    [n] Cancel    [space] toggle branches    [?] help")
 	fmt.Fprintf(&b, "\n%s\n", help)
 	return b.String()
 }

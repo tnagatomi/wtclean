@@ -62,6 +62,8 @@ type Model struct {
 	fetching   bool
 	fetchError error
 
+	helpVisible bool
+
 	termWidth  int
 	termHeight int
 }
@@ -115,6 +117,16 @@ func (m Model) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	if msg.String() == "q" {
 		return m, tea.Quit
 	}
+	if msg.String() == "?" {
+		m.helpVisible = !m.helpVisible
+		return m, nil
+	}
+	if m.helpVisible {
+		if msg.String() == "esc" {
+			m.helpVisible = false
+		}
+		return m, nil
+	}
 	switch m.screen {
 	case screenRepos:
 		if msg.String() == "enter" && len(m.repos) > 0 {
@@ -166,12 +178,14 @@ func (m Model) delegateToTable(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 func (m Model) View() tea.View {
 	var content string
-	switch m.screen {
-	case screenConfirmDelete:
+	switch {
+	case m.helpVisible:
+		content = helpView()
+	case m.screen == screenConfirmDelete:
 		content = m.confirmDeleteView()
-	case screenWorktrees:
+	case m.screen == screenWorktrees:
 		content = m.worktreeView()
-	case screenRepos:
+	default:
 		content = m.repoView()
 	}
 	v := tea.NewView(content)
@@ -184,7 +198,7 @@ func (m Model) repoView() string {
 		return "No repositories with linked worktrees found.\n\nPress q to quit.\n"
 	}
 	title := lipgloss.NewStyle().Bold(true).Render("wtm — repositories")
-	help := faintStyle.Render("[↑/k] up  [↓/j] down  [enter] open  [q] quit")
+	help := faintStyle.Render("[↑/k] up  [↓/j] down  [enter] open  [?] help  [q] quit")
 	return fmt.Sprintf("%s\n%s\n%s\n", title, m.repoTable.View(), help)
 }
 
@@ -199,7 +213,7 @@ func (m Model) worktreeView() string {
 		titleText += "    /" + m.filterQuery + cursor
 	}
 	title := lipgloss.NewStyle().Bold(true).Render(titleText)
-	help := faintStyle.Render("[↑/k] up  [↓/j] down  [space] select  [/] filter  [d] delete  [r] fetch  [esc] back/clear  [q] quit")
+	help := faintStyle.Render("[↑/k] up  [↓/j] down  [space] select  [/] filter  [d] delete  [r] fetch  [?] help  [esc] back/clear  [q] quit")
 	body := renderWorktreeTable(m.worktreeTable, m.worktreeVisible)
 	if m.fetching {
 		body += "\n" + faintStyle.Render("⏳ Fetching...")
