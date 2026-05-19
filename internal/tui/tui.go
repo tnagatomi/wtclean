@@ -42,6 +42,7 @@ type Model struct {
 	worktreeMaxPath   int
 	worktreeMaxBranch int
 	worktreeMaxBadges int
+	selected          map[int]bool
 
 	termWidth  int
 	termHeight int
@@ -92,9 +93,12 @@ func (m Model) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 			return m, nil
 		}
 	case screenWorktrees:
-		if msg.String() == "esc" {
+		switch msg.String() {
+		case "esc":
 			m.screen = screenRepos
 			return m, nil
+		case "space":
+			return m.toggleSelection(), nil
 		}
 	}
 	return m.delegateToTable(msg)
@@ -147,12 +151,13 @@ func (m Model) enterWorktrees(idx int) Model {
 	wts := sortWorktrees(m.repos[idx].Worktrees)
 	maxPath, maxBranch := maxWorktreeWidths(wts)
 	maxBadges := badgesVisibleWidth(wts)
-	cols, rs := worktreeLayout(wts, maxPath, maxBranch, maxBadges, m.termWidth)
+	m.selected = map[int]bool{}
+	cols, rs := worktreeLayout(wts, m.selected, maxPath, maxBranch, maxBadges, m.termWidth)
 	t := table.New(
 		table.WithColumns(cols),
 		table.WithRows(rs),
 		table.WithFocused(true),
-		table.WithKeyMap(emacsTableKeyMap()),
+		table.WithKeyMap(worktreeTableKeyMap()),
 		table.WithStyles(worktreeTableStyles()),
 		table.WithWidth(tableWidth(cols)),
 	)
@@ -181,7 +186,7 @@ func (m *Model) refreshLayout() {
 		m.repoTable.SetWidth(tableWidth(cols))
 		m.repoTable.SetHeight(max(1, m.termHeight-chromeRows))
 	case screenWorktrees:
-		cols, rs := worktreeLayout(m.worktreeSorted, m.worktreeMaxPath, m.worktreeMaxBranch, m.worktreeMaxBadges, m.termWidth)
+		cols, rs := worktreeLayout(m.worktreeSorted, m.selected, m.worktreeMaxPath, m.worktreeMaxBranch, m.worktreeMaxBadges, m.termWidth)
 		m.worktreeTable.SetColumns(cols)
 		m.worktreeTable.SetRows(rs)
 		m.worktreeTable.SetWidth(tableWidth(cols))
@@ -234,12 +239,13 @@ func repoLayout(repos []repo.Repo, contentPathWidth, termWidth int) ([]table.Col
 // the terminal width. When clamping is needed, Path absorbs the reduction
 // first since it is typically the longest field. Badges and Last commit
 // keep their natural widths since their content is fixed-shape.
-func worktreeLayout(wts []worktree.Worktree, contentPathWidth, contentBranchWidth, contentBadgesWidth, termWidth int) ([]table.Column, []table.Row) {
+func worktreeLayout(wts []worktree.Worktree, selected map[int]bool, contentPathWidth, contentBranchWidth, contentBadgesWidth, termWidth int) ([]table.Column, []table.Row) {
 	const (
-		timeWidth = len(timeLayout)
-		padding   = 10
-		minPath   = 20
-		minBranch = 6
+		timeWidth     = len(timeLayout)
+		checkboxWidth = 3
+		padding       = 12
+		minPath       = 20
+		minBranch     = 6
 	)
 	pathWidth := contentPathWidth
 	branchWidth := contentBranchWidth
@@ -247,7 +253,7 @@ func worktreeLayout(wts []worktree.Worktree, contentPathWidth, contentBranchWidt
 	// column. Path absorbs any reduction first, then Branch, when the
 	// terminal cannot fit Path's natural width.
 	if termWidth > 0 {
-		available := termWidth - timeWidth - contentBadgesWidth - padding
+		available := termWidth - timeWidth - checkboxWidth - contentBadgesWidth - padding
 		if pathWidth+branchWidth > available {
 			pathWidth = available - branchWidth
 			if pathWidth < minPath {
@@ -259,6 +265,7 @@ func worktreeLayout(wts []worktree.Worktree, contentPathWidth, contentBranchWidt
 	pathWidth = max(pathWidth, minPath)
 	branchWidth = max(branchWidth, minBranch)
 	cols := []table.Column{
+		{Title: "", Width: checkboxWidth},
 		{Title: "Path", Width: pathWidth},
 		{Title: "Branch", Width: branchWidth},
 		{Title: "Last commit", Width: timeWidth},
@@ -267,6 +274,7 @@ func worktreeLayout(wts []worktree.Worktree, contentPathWidth, contentBranchWidt
 	rs := make([]table.Row, len(wts))
 	for i, w := range wts {
 		rs[i] = table.Row{
+			checkboxCell(w, selected[i]),
 			truncateHead(w.Path, pathWidth),
 			truncateHead(w.Branch, branchWidth),
 			formatTime(w.LastCommit),
@@ -274,6 +282,28 @@ func worktreeLayout(wts []worktree.Worktree, contentPathWidth, contentBranchWidt
 		}
 	}
 	return cols, rs
+}
+
+// toggleSelection flips the selection state on the focused worktree and
+// rebuilds the visible rows so the checkbox column reflects the new state.
+// Selection is keyed by index into worktreeSorted (not by visible row) so
+// the upcoming filter layer can compose without re-keying.
+func (m Model) toggleSelection() Model {
+	idx := m.worktreeTable.Cursor()
+	if idx < 0 || idx >= len(m.worktreeSorted) {
+		return m
+	}
+	if !isSelectable(m.worktreeSorted[idx]) {
+		return m
+	}
+	if m.selected[idx] {
+		delete(m.selected, idx)
+	} else {
+		m.selected[idx] = true
+	}
+	_, rs := worktreeLayout(m.worktreeSorted, m.selected, m.worktreeMaxPath, m.worktreeMaxBranch, m.worktreeMaxBadges, m.termWidth)
+	m.worktreeTable.SetRows(rs)
+	return m
 }
 
 // tableWidth returns the natural viewport width needed to render every

@@ -75,7 +75,7 @@ func TestRenderBadgesNotTruncatedWithColorProfile(t *testing.T) {
 	wts := []worktree.Worktree{
 		{Path: "/repo", Branch: "main", Badges: []worktree.Badge{worktree.BadgePrimary}},
 	}
-	cols, rows := worktreeLayout(wts, len("Path"), len("Branch"), badgesVisibleWidth(wts), 200)
+	cols, rows := worktreeLayout(wts, nil, len("Path"), len("Branch"), badgesVisibleWidth(wts), 200)
 	tb := table.New(table.WithColumns(cols), table.WithRows(rows), table.WithWidth(tableWidth(cols)))
 	view := ansi.Strip(tb.View())
 
@@ -108,7 +108,7 @@ func TestRenderWorktreeTableColorsRowsByBadge(t *testing.T) {
 	}
 	pathWidth, branchWidth := maxWorktreeWidths(wts)
 	badgesWidth := badgesVisibleWidth(wts)
-	cols, rows := worktreeLayout(wts, pathWidth, branchWidth, badgesWidth, 200)
+	cols, rows := worktreeLayout(wts, nil, pathWidth, branchWidth, badgesWidth, 200)
 	tb := table.New(
 		table.WithColumns(cols),
 		table.WithRows(rows),
