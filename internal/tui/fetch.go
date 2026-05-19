@@ -1,10 +1,13 @@
 package tui
 
 import (
+	"fmt"
+
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/tnagatomi/wtm/internal/fetcher"
 	"github.com/tnagatomi/wtm/internal/repo"
+	"github.com/tnagatomi/wtm/internal/wtmlog"
 )
 
 // fetchCompleteMsg is dispatched from the fetch goroutine back into the
@@ -47,7 +50,7 @@ func (m Model) fetchCmd() tea.Cmd {
 // fetchErr takes precedence over loadErr in the surfaced summary since
 // a fetch failure is usually the actionable one (network / auth issue);
 // a load failure after a successful fetch is rarer and likely transient.
-func (m Model) applyFetchResult(msg fetchCompleteMsg) Model {
+func (m Model) applyFetchResult(msg fetchCompleteMsg) (Model, tea.Cmd) {
 	if msg.reloaded != nil {
 		m.repos[m.selectedRepoIdx] = *msg.reloaded
 		m = m.enterWorktrees(m.selectedRepoIdx)
@@ -61,5 +64,24 @@ func (m Model) applyFetchResult(msg fetchCompleteMsg) Model {
 	default:
 		m.fetchError = nil
 	}
-	return m
+	return m, logFetchFailuresCmd(m.repos[m.selectedRepoIdx].Path, msg)
+}
+
+// logFetchFailuresCmd returns a tea.Cmd that writes one log line for
+// each non-nil error in msg. fetch and reload are logged with distinct
+// op labels so the user can tell which step failed when reading the
+// log. Returns nil when both errors are nil.
+func logFetchFailuresCmd(repoPath string, msg fetchCompleteMsg) tea.Cmd {
+	if msg.fetchErr == nil && msg.loadErr == nil {
+		return nil
+	}
+	return func() tea.Msg {
+		if msg.fetchErr != nil {
+			_ = wtmlog.Append(fmt.Sprintf("fetch %s: %v", repoPath, msg.fetchErr))
+		}
+		if msg.loadErr != nil {
+			_ = wtmlog.Append(fmt.Sprintf("reload %s: %v", repoPath, msg.loadErr))
+		}
+		return nil
+	}
 }

@@ -115,9 +115,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.KeyPressMsg:
 		return m.handleKey(msg)
 	case deleteCompleteMsg:
-		return m.applyDeleteResult(msg), nil
+		return m.applyDeleteResult(msg)
 	case fetchCompleteMsg:
-		return m.applyFetchResult(msg), nil
+		return m.applyFetchResult(msg)
 	}
 	return m.delegateToTable(msg)
 }

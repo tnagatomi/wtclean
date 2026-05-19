@@ -1,6 +1,9 @@
 package tui
 
 import (
+	"errors"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -171,6 +174,34 @@ func TestDeleteCompleteReturnsToScreen2WithFailures(t *testing.T) {
 	}
 	if len(got.deleteFailures) != 1 {
 		t.Errorf("failures should be stashed on the model: %v", got.deleteFailures)
+	}
+}
+
+func TestDeleteFailuresAreAppendedToLog(t *testing.T) {
+	dir := t.TempDir()
+	t.Setenv("XDG_STATE_HOME", dir)
+
+	m := confirmScreenModel(t)
+	failures := []deleter.Failure{
+		{Path: "/repo/wt/wip", Op: deleter.OpRemove, Err: errors.New("boom")},
+		{Path: "/repo/wt/old", Op: deleter.OpUnlock, Err: errors.New("locked by another process")},
+	}
+	_, cmd := m.Update(deleteCompleteMsg{failures: failures})
+	if cmd == nil {
+		t.Fatal("delete completion with failures should return a log cmd")
+	}
+	cmd() // execute the log cmd inline
+
+	data, err := os.ReadFile(filepath.Join(dir, "wtm", "wtm.log"))
+	if err != nil {
+		t.Fatalf("ReadFile: %v", err)
+	}
+	body := string(data)
+	if !strings.Contains(body, "delete:remove /repo/wt/wip: boom") {
+		t.Errorf("log missing remove failure: %q", body)
+	}
+	if !strings.Contains(body, "delete:unlock /repo/wt/old: locked by another process") {
+		t.Errorf("log missing unlock failure: %q", body)
 	}
 }
 
