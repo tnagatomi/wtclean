@@ -77,10 +77,10 @@ func logFetchFailuresCmd(repoPath string, msg fetchCompleteMsg) tea.Cmd {
 	}
 	return func() tea.Msg {
 		if msg.fetchErr != nil {
-			_ = wtmlog.Append(fmt.Sprintf("fetch %s: %v", repoPath, msg.fetchErr))
+			_ = wtmlog.Append(fmt.Sprintf("fetch:fetch %s: %v", repoPath, msg.fetchErr))
 		}
 		if msg.loadErr != nil {
-			_ = wtmlog.Append(fmt.Sprintf("reload %s: %v", repoPath, msg.loadErr))
+			_ = wtmlog.Append(fmt.Sprintf("fetch:reload %s: %v", repoPath, msg.loadErr))
 		}
 		return nil
 	}

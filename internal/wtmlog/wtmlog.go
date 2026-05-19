@@ -16,22 +16,18 @@ import (
 // spec: $XDG_STATE_HOME/wtm/wtm.log, falling back to
 // ~/.local/state/wtm/wtm.log when XDG_STATE_HOME is unset or empty.
 func Path() (string, error) {
-	base := ""
-	x := os.Getenv("XDG_STATE_HOME")
-	if x != "" {
-		base = x
-	} else {
+	base := os.Getenv("XDG_STATE_HOME")
+	if base == "" {
 		home, err := os.UserHomeDir()
 		if err != nil {
 			return "", fmt.Errorf("resolve home directory: %w", err)
 		}
-		base = filepath.Join(home, ".local/state")
+		base = filepath.Join(home, ".local", "state")
 	}
 	path := filepath.Join(base, "wtm", "wtm.log")
 	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
 		return "", fmt.Errorf("create log directory: %w", err)
 	}
-
 	return path, nil
 }
 
