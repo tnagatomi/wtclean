@@ -7,8 +7,18 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 
+	"github.com/tnagatomi/wtm/internal/deleter"
+	"github.com/tnagatomi/wtm/internal/repo"
 	"github.com/tnagatomi/wtm/internal/worktree"
 )
+
+// deleteCompleteMsg is dispatched from the goroutine that runs the
+// deletion batch back into the bubbletea event loop. The TUI stays
+// responsive while git is working because the slow exec calls live in
+// the Cmd, not in Update.
+type deleteCompleteMsg struct {
+	failures []deleter.Failure
+}
 
 // warningBadges identifies badges that escalate a row in the confirmation
 // list with a `⚠` prefix and add a per-kind line to the warnings block.
@@ -46,21 +56,44 @@ func (m Model) enterConfirmDelete() Model {
 	return m
 }
 
-func (m Model) handleConfirmKey(msg tea.KeyPressMsg) Model {
+func (m Model) handleConfirmKey(msg tea.KeyPressMsg) (Model, tea.Cmd) {
 	switch msg.String() {
 	case "esc", "n":
 		m.screen = screenWorktrees
-		return m
+		return m, nil
 	case "space":
 		m.deleteBranchesToggle = !m.deleteBranchesToggle
-		return m
+		return m, nil
 	case "y":
-		// Execution wires up in chunk 9.2; for now treat `y` as a confirm
-		// stub that simply returns to the worktree screen so the user is
-		// not stranded on a screen with no working action.
-		m.screen = screenWorktrees
-		return m
+		return m, m.deleteCmd()
 	}
+	return m, nil
+}
+
+// deleteCmd returns a tea.Cmd so the long-running git invocations
+// execute off the Update goroutine and the TUI stays responsive. The
+// Cmd posts a deleteCompleteMsg with the collected failures back into
+// Update.
+func (m Model) deleteCmd() tea.Cmd {
+	repoPath := m.repos[m.selectedRepoIdx].Path
+	targets := m.deleteTargets
+	alsoBranches := m.deleteBranchesToggle
+	return func() tea.Msg {
+		return deleteCompleteMsg{failures: deleter.Delete(repoPath, targets, alsoBranches)}
+	}
+}
+
+// applyDeleteResult reloads the affected repo so the worktree list
+// reflects the post-deletion state, then re-enters Screen 2 (which
+// clears the selection and filter as a side-effect of enterWorktrees).
+// Reload failures keep the stale repo data — the user can re-enter the
+// repo from Screen 1 to retry.
+func (m Model) applyDeleteResult(msg deleteCompleteMsg) Model {
+	if r, err := repo.Load(m.repos[m.selectedRepoIdx].Path); err == nil {
+		m.repos[m.selectedRepoIdx] = r
+	}
+	m = m.enterWorktrees(m.selectedRepoIdx)
+	m.deleteFailures = msg.failures
 	return m
 }
 
@@ -70,7 +103,7 @@ func (m Model) confirmDeleteView() string {
 	fmt.Fprintf(&b, "%s\n\n", title)
 	for _, w := range m.deleteTargets {
 		prefix := "    "
-		if hasAnyBadge(w, warningBadges) {
+		if w.HasAnyBadge(warningBadges) {
 			prefix = "  ⚠ "
 		}
 		fmt.Fprintf(&b, "%s%s    %s\n", prefix, w.Path, renderBadges(w.Badges))

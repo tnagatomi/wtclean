@@ -6,6 +6,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
+	"github.com/tnagatomi/wtm/internal/deleter"
 	"github.com/tnagatomi/wtm/internal/worktree"
 )
 
@@ -137,6 +138,52 @@ func TestEscCancelsBackToScreen2(t *testing.T) {
 	m, _ = m.Update(tea.KeyPressMsg{Code: tea.KeyEsc})
 	if got := m.(Model).screen; got != screenWorktrees {
 		t.Fatalf("esc should return to Screen 2: screen=%v", got)
+	}
+}
+
+func TestYDispatchesDeleteCompleteMsg(t *testing.T) {
+	m := confirmScreenModel(t)
+	_, cmd := m.Update(tea.KeyPressMsg{Code: 'y', Text: "y"})
+	if cmd == nil {
+		t.Fatal("y should dispatch a delete cmd; got nil")
+	}
+	// Run the cmd to pin down the dispatch contract; the real git calls
+	// inside Delete will fail against the fake paths in the fixture, but
+	// the Cmd is contractually required to return a deleteCompleteMsg
+	// regardless of the underlying success.
+	if _, ok := cmd().(deleteCompleteMsg); !ok {
+		t.Fatalf("delete cmd should return deleteCompleteMsg; got %T", cmd())
+	}
+}
+
+func TestDeleteCompleteReturnsToScreen2WithFailures(t *testing.T) {
+	m := confirmScreenModel(t)
+	// Bypass the real git Cmd by synthesizing the completion message
+	// directly. The deleter package owns the actual git execution tests.
+	failures := []deleter.Failure{{Path: "/repo/wt/wip", Op: deleter.OpRemove}}
+	m, _ = m.Update(deleteCompleteMsg{failures: failures})
+	got := m.(Model)
+	if got.screen != screenWorktrees {
+		t.Fatalf("after delete completion screen should be Screen 2: %v", got.screen)
+	}
+	if len(got.selected) != 0 {
+		t.Errorf("selection should be cleared after delete: %v", got.selected)
+	}
+	if len(got.deleteFailures) != 1 {
+		t.Errorf("failures should be stashed on the model: %v", got.deleteFailures)
+	}
+}
+
+func TestDeleteFailureSummaryRenderedOnScreen2(t *testing.T) {
+	m := confirmScreenModel(t)
+	failures := []deleter.Failure{
+		{Path: "/repo/wt/a", Op: deleter.OpRemove},
+		{Path: "/repo/wt/b", Op: deleter.OpRemove},
+	}
+	m, _ = m.Update(deleteCompleteMsg{failures: failures})
+	view := m.(Model).View().Content
+	if !strings.Contains(view, "2 operation(s) failed during last delete") {
+		t.Errorf("Screen 2 should surface failure count: %q", view)
 	}
 }
 
