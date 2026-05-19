@@ -39,10 +39,14 @@ type Model struct {
 
 	worktreeTable     table.Model
 	worktreeSorted    []worktree.Worktree
+	worktreeVisible   []worktree.Worktree
 	worktreeMaxPath   int
 	worktreeMaxBranch int
 	worktreeMaxBadges int
-	selected          map[int]bool
+	selected          map[string]bool
+
+	filterEditing bool
+	filterQuery   string
 
 	termWidth  int
 	termHeight int
@@ -82,8 +86,15 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m Model) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
-	switch msg.String() {
-	case "q", "ctrl+c":
+	// ctrl+c is always a quit; other shortcuts (including `q`) must not
+	// fire while the filter input is consuming keypresses as literal text.
+	if msg.String() == "ctrl+c" {
+		return m, tea.Quit
+	}
+	if m.screen == screenWorktrees && m.filterEditing {
+		return m.handleFilterEditKey(msg), nil
+	}
+	if msg.String() == "q" {
 		return m, tea.Quit
 	}
 	switch m.screen {
@@ -95,7 +106,13 @@ func (m Model) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	case screenWorktrees:
 		switch msg.String() {
 		case "esc":
+			if m.filterQuery != "" {
+				return m.clearFilter(), nil
+			}
 			m.screen = screenRepos
+			return m, nil
+		case "/":
+			m.filterEditing = true
 			return m, nil
 		case "space":
 			return m.toggleSelection(), nil
@@ -139,9 +156,17 @@ func (m Model) repoView() string {
 
 func (m Model) worktreeView() string {
 	r := m.repos[m.selectedRepoIdx]
-	title := lipgloss.NewStyle().Bold(true).Render(fmt.Sprintf("wtm — worktrees in %s", r.Path))
-	help := lipgloss.NewStyle().Faint(true).Render("[↑/k] up  [↓/j] down  [esc] back  [q] quit")
-	return fmt.Sprintf("%s\n%s\n%s\n", title, renderWorktreeTable(m.worktreeTable, m.worktreeSorted), help)
+	titleText := fmt.Sprintf("wtm — worktrees in %s", r.Path)
+	if m.filterEditing || m.filterQuery != "" {
+		cursor := ""
+		if m.filterEditing {
+			cursor = "_"
+		}
+		titleText += "    /" + m.filterQuery + cursor
+	}
+	title := lipgloss.NewStyle().Bold(true).Render(titleText)
+	help := lipgloss.NewStyle().Faint(true).Render("[↑/k] up  [↓/j] down  [space] select  [/] filter  [esc] back/clear  [q] quit")
+	return fmt.Sprintf("%s\n%s\n%s\n", title, renderWorktreeTable(m.worktreeTable, m.worktreeVisible), help)
 }
 
 // enterWorktrees switches to Screen 2 for the repo at idx. The worktree
@@ -151,7 +176,9 @@ func (m Model) enterWorktrees(idx int) Model {
 	wts := sortWorktrees(m.repos[idx].Worktrees)
 	maxPath, maxBranch := maxWorktreeWidths(wts)
 	maxBadges := badgesVisibleWidth(wts)
-	m.selected = map[int]bool{}
+	m.selected = map[string]bool{}
+	m.filterEditing = false
+	m.filterQuery = ""
 	cols, rs := worktreeLayout(wts, m.selected, maxPath, maxBranch, maxBadges, m.termWidth)
 	t := table.New(
 		table.WithColumns(cols),
@@ -169,6 +196,7 @@ func (m Model) enterWorktrees(idx int) Model {
 	}
 	m.worktreeTable = t
 	m.worktreeSorted = wts
+	m.worktreeVisible = wts
 	m.worktreeMaxPath = maxPath
 	m.worktreeMaxBranch = maxBranch
 	m.worktreeMaxBadges = maxBadges
@@ -186,7 +214,7 @@ func (m *Model) refreshLayout() {
 		m.repoTable.SetWidth(tableWidth(cols))
 		m.repoTable.SetHeight(max(1, m.termHeight-chromeRows))
 	case screenWorktrees:
-		cols, rs := worktreeLayout(m.worktreeSorted, m.selected, m.worktreeMaxPath, m.worktreeMaxBranch, m.worktreeMaxBadges, m.termWidth)
+		cols, rs := worktreeLayout(m.worktreeVisible, m.selected, m.worktreeMaxPath, m.worktreeMaxBranch, m.worktreeMaxBadges, m.termWidth)
 		m.worktreeTable.SetColumns(cols)
 		m.worktreeTable.SetRows(rs)
 		m.worktreeTable.SetWidth(tableWidth(cols))
@@ -239,7 +267,7 @@ func repoLayout(repos []repo.Repo, contentPathWidth, termWidth int) ([]table.Col
 // the terminal width. When clamping is needed, Path absorbs the reduction
 // first since it is typically the longest field. Badges and Last commit
 // keep their natural widths since their content is fixed-shape.
-func worktreeLayout(wts []worktree.Worktree, selected map[int]bool, contentPathWidth, contentBranchWidth, contentBadgesWidth, termWidth int) ([]table.Column, []table.Row) {
+func worktreeLayout(wts []worktree.Worktree, selected map[string]bool, contentPathWidth, contentBranchWidth, contentBadgesWidth, termWidth int) ([]table.Column, []table.Row) {
 	const (
 		timeWidth     = len(timeLayout)
 		checkboxWidth = 3
@@ -274,7 +302,7 @@ func worktreeLayout(wts []worktree.Worktree, selected map[int]bool, contentPathW
 	rs := make([]table.Row, len(wts))
 	for i, w := range wts {
 		rs[i] = table.Row{
-			checkboxCell(w, selected[i]),
+			checkboxCell(w, selected[w.Path]),
 			truncateHead(w.Path, pathWidth),
 			truncateHead(w.Branch, branchWidth),
 			formatTime(w.LastCommit),
@@ -286,22 +314,23 @@ func worktreeLayout(wts []worktree.Worktree, selected map[int]bool, contentPathW
 
 // toggleSelection flips the selection state on the focused worktree and
 // rebuilds the visible rows so the checkbox column reflects the new state.
-// Selection is keyed by index into worktreeSorted (not by visible row) so
-// the upcoming filter layer can compose without re-keying.
+// Selection is keyed by worktree path so a row's selection survives the
+// filter shrinking and re-expanding the visible set.
 func (m Model) toggleSelection() Model {
-	idx := m.worktreeTable.Cursor()
-	if idx < 0 || idx >= len(m.worktreeSorted) {
+	cursor := m.worktreeTable.Cursor()
+	if cursor < 0 || cursor >= len(m.worktreeVisible) {
 		return m
 	}
-	if !isSelectable(m.worktreeSorted[idx]) {
+	w := m.worktreeVisible[cursor]
+	if !isSelectable(w) {
 		return m
 	}
-	if m.selected[idx] {
-		delete(m.selected, idx)
+	if m.selected[w.Path] {
+		delete(m.selected, w.Path)
 	} else {
-		m.selected[idx] = true
+		m.selected[w.Path] = true
 	}
-	_, rs := worktreeLayout(m.worktreeSorted, m.selected, m.worktreeMaxPath, m.worktreeMaxBranch, m.worktreeMaxBadges, m.termWidth)
+	_, rs := worktreeLayout(m.worktreeVisible, m.selected, m.worktreeMaxPath, m.worktreeMaxBranch, m.worktreeMaxBadges, m.termWidth)
 	m.worktreeTable.SetRows(rs)
 	return m
 }

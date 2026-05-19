@@ -10,49 +10,35 @@ import (
 	"github.com/tnagatomi/wtm/internal/worktree"
 )
 
-func selectionTestModel(t *testing.T) Model {
-	t.Helper()
-	repos := []repo.Repo{{
-		Path: "/repo",
-		Worktrees: []worktree.Worktree{
-			{Path: "/repo", Branch: "main", Badges: []worktree.Badge{worktree.BadgePrimary}},
-			{Path: "/repo/wt/a", Branch: "feat-a"},
-			{Path: "/repo/wt/b", Branch: "feat-b"},
-		},
-	}}
-	m := tea.Model(NewModel(repos))
-	// Window size first so the table viewport renders rows.
-	m, _ = m.Update(tea.WindowSizeMsg{Width: 100, Height: 20})
-	m, _ = m.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
-	return m.(Model)
+func selectionTestModel(t *testing.T) tea.Model {
+	return worktreeScreenModel(t, []worktree.Worktree{
+		{Path: "/repo", Branch: "main", Badges: []worktree.Badge{worktree.BadgePrimary}},
+		{Path: "/repo/wt/a", Branch: "feat-a"},
+		{Path: "/repo/wt/b", Branch: "feat-b"},
+	})
 }
 
 func TestSpaceTogglesSelectionOnSelectableRow(t *testing.T) {
 	m := selectionTestModel(t)
 	// Worktrees sort oldest-first by LastCommit; all three have zero time, so
 	// they retain insertion order: primary at index 0. Move cursor to index 1.
-	mAny := tea.Model(m)
-	mAny, _ = mAny.Update(tea.KeyPressMsg{Code: tea.KeyDown})
-	mAny, _ = mAny.Update(tea.KeyPressMsg{Code: tea.KeySpace})
-	got := mAny.(Model)
-	if !got.selected[1] {
-		t.Fatalf("space did not select index 1: %v", got.selected)
+	m, _ = m.Update(tea.KeyPressMsg{Code: tea.KeyDown})
+	m, _ = m.Update(tea.KeyPressMsg{Code: tea.KeySpace})
+	if !m.(Model).selected["/repo/wt/a"] {
+		t.Fatalf("space did not select /repo/wt/a: %v", m.(Model).selected)
 	}
-	mAny, _ = mAny.Update(tea.KeyPressMsg{Code: tea.KeySpace})
-	got = mAny.(Model)
-	if got.selected[1] {
-		t.Fatalf("second space did not deselect index 1: %v", got.selected)
+	m, _ = m.Update(tea.KeyPressMsg{Code: tea.KeySpace})
+	if m.(Model).selected["/repo/wt/a"] {
+		t.Fatalf("second space did not deselect /repo/wt/a: %v", m.(Model).selected)
 	}
 }
 
 func TestSpaceIsNoOpOnPrimaryRow(t *testing.T) {
 	m := selectionTestModel(t)
-	mAny := tea.Model(m)
 	// Cursor starts at index 0 (the primary worktree).
-	mAny, _ = mAny.Update(tea.KeyPressMsg{Code: tea.KeySpace})
-	got := mAny.(Model)
-	if len(got.selected) != 0 {
-		t.Fatalf("space on primary row selected something: %v", got.selected)
+	m, _ = m.Update(tea.KeyPressMsg{Code: tea.KeySpace})
+	if got := m.(Model).selected; len(got) != 0 {
+		t.Fatalf("space on primary row selected something: %v", got)
 	}
 }
 
@@ -60,10 +46,9 @@ func TestCheckboxColumnRendersThreeStates(t *testing.T) {
 	m := selectionTestModel(t)
 	// Move to non-primary index 1 and select it; index 2 stays unselected;
 	// index 0 is the non-selectable primary.
-	mAny := tea.Model(m)
-	mAny, _ = mAny.Update(tea.KeyPressMsg{Code: tea.KeyDown})
-	mAny, _ = mAny.Update(tea.KeyPressMsg{Code: tea.KeySpace})
-	view := mAny.(Model).View().Content
+	m, _ = m.Update(tea.KeyPressMsg{Code: tea.KeyDown})
+	m, _ = m.Update(tea.KeyPressMsg{Code: tea.KeySpace})
+	view := m.(Model).View().Content
 
 	if !strings.Contains(view, "[x]") {
 		t.Errorf("view missing [x] for selected row: %q", view)
