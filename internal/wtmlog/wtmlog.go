@@ -44,7 +44,7 @@ func Append(line string) error {
 	if err != nil {
 		return fmt.Errorf("open log: %w", err)
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 	_, err = fmt.Fprintf(f, "%s %s\n", time.Now().UTC().Format(time.RFC3339), line)
 	if err != nil {
 		return fmt.Errorf("write log: %w", err)
