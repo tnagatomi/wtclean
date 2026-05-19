@@ -3,6 +3,7 @@ package worktree
 
 import (
 	"bufio"
+	"slices"
 	"strings"
 	"time"
 )
@@ -44,6 +45,17 @@ const (
 	BadgeLocked
 	BadgeMissing
 )
+
+// HasAnyBadge returns true when w carries at least one of badges. Used by
+// the deleter to decide on --force and by the TUI to flag warning rows.
+func (w Worktree) HasAnyBadge(badges []Badge) bool {
+	for _, b := range badges {
+		if slices.Contains(w.Badges, b) {
+			return true
+		}
+	}
+	return false
+}
 
 func (b Badge) String() string {
 	switch b {

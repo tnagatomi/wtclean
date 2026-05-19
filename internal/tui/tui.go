@@ -10,6 +10,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 
+	"github.com/tnagatomi/wtm/internal/deleter"
 	"github.com/tnagatomi/wtm/internal/repo"
 	"github.com/tnagatomi/wtm/internal/worktree"
 )
@@ -26,6 +27,7 @@ type screenID int
 const (
 	screenRepos screenID = iota
 	screenWorktrees
+	screenConfirmDelete
 )
 
 type Model struct {
@@ -47,6 +49,10 @@ type Model struct {
 
 	filterEditing bool
 	filterQuery   string
+
+	deleteTargets        []worktree.Worktree
+	deleteBranchesToggle bool
+	deleteFailures       []deleter.Failure
 
 	termWidth  int
 	termHeight int
@@ -81,6 +87,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 	case tea.KeyPressMsg:
 		return m.handleKey(msg)
+	case deleteCompleteMsg:
+		return m.applyDeleteResult(msg), nil
 	}
 	return m.delegateToTable(msg)
 }
@@ -116,7 +124,14 @@ func (m Model) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 			return m, nil
 		case "space":
 			return m.toggleSelection(), nil
+		case "d":
+			if len(m.selected) > 0 {
+				return m.enterConfirmDelete(), nil
+			}
+			return m, nil
 		}
+	case screenConfirmDelete:
+		return m.handleConfirmKey(msg)
 	}
 	return m.delegateToTable(msg)
 }
@@ -135,9 +150,11 @@ func (m Model) delegateToTable(msg tea.Msg) (tea.Model, tea.Cmd) {
 func (m Model) View() tea.View {
 	var content string
 	switch m.screen {
+	case screenConfirmDelete:
+		content = m.confirmDeleteView()
 	case screenWorktrees:
 		content = m.worktreeView()
-	default:
+	case screenRepos:
 		content = m.repoView()
 	}
 	v := tea.NewView(content)
@@ -165,8 +182,12 @@ func (m Model) worktreeView() string {
 		titleText += "    /" + m.filterQuery + cursor
 	}
 	title := lipgloss.NewStyle().Bold(true).Render(titleText)
-	help := lipgloss.NewStyle().Faint(true).Render("[↑/k] up  [↓/j] down  [space] select  [/] filter  [esc] back/clear  [q] quit")
-	return fmt.Sprintf("%s\n%s\n%s\n", title, renderWorktreeTable(m.worktreeTable, m.worktreeVisible), help)
+	help := lipgloss.NewStyle().Faint(true).Render("[↑/k] up  [↓/j] down  [space] select  [/] filter  [d] delete  [esc] back/clear  [q] quit")
+	body := renderWorktreeTable(m.worktreeTable, m.worktreeVisible)
+	if n := len(m.deleteFailures); n > 0 {
+		body += "\n" + lipgloss.NewStyle().Faint(true).Render(fmt.Sprintf("⚠ %d operation(s) failed during last delete", n))
+	}
+	return fmt.Sprintf("%s\n%s\n%s\n", title, body, help)
 }
 
 // enterWorktrees switches to Screen 2 for the repo at idx. The worktree

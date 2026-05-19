@@ -16,7 +16,7 @@ func TestPopulateBadgesPrimary(t *testing.T) {
 	initRepo(t, repoPath)
 	addWorktree(t, repoPath, filepath.Join(dir, "wt"), "feat")
 
-	r, err := load(repoPath)
+	r, err := Load(repoPath)
 	if err != nil {
 		t.Fatalf("load: %v", err)
 	}
@@ -37,7 +37,7 @@ func TestPopulateBadgesMerged(t *testing.T) {
 	// merged-branch was created from main and has no new commits, so
 	// `git branch --merged main` lists it.
 
-	r, err := load(repoPath)
+	r, err := Load(repoPath)
 	if err != nil {
 		t.Fatalf("load: %v", err)
 	}
@@ -59,7 +59,7 @@ func TestPopulateBadgesDirty(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	r, err := load(repoPath)
+	r, err := Load(repoPath)
 	if err != nil {
 		t.Fatalf("load: %v", err)
 	}
@@ -77,7 +77,7 @@ func TestPopulateBadgesLocked(t *testing.T) {
 	addWorktree(t, repoPath, wtPath, "feat")
 	mustRun(t, "git", "-C", repoPath, "worktree", "lock", wtPath)
 
-	r, err := load(repoPath)
+	r, err := Load(repoPath)
 	if err != nil {
 		t.Fatalf("load: %v", err)
 	}
@@ -97,7 +97,7 @@ func TestPopulateBadgesMissing(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	r, err := load(repoPath)
+	r, err := Load(repoPath)
 	if err != nil {
 		t.Fatalf("load: %v", err)
 	}

@@ -54,7 +54,7 @@ func Discover(roots []string, maxDepth int) ([]Repo, error) {
 		wg.Go(func() {
 			sem <- struct{}{}
 			defer func() { <-sem }()
-			r, err := load(p)
+			r, err := Load(p)
 			if err != nil {
 				return
 			}
@@ -75,7 +75,10 @@ func Discover(roots []string, maxDepth int) ([]Repo, error) {
 	return filtered, nil
 }
 
-func load(path string) (Repo, error) {
+// Load queries a single repository for its worktrees, badge state, and
+// last-fetch timestamp. Discover uses it across the configured roots;
+// the TUI uses it to refresh one repo after a delete or fetch.
+func Load(path string) (Repo, error) {
 	out, err := exec.Command("git", "-C", path, "worktree", "list", "--porcelain").Output()
 	if err != nil {
 		return Repo{}, err
