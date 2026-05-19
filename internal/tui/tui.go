@@ -26,6 +26,7 @@ type screenID int
 const (
 	screenRepos screenID = iota
 	screenWorktrees
+	screenConfirmDelete
 )
 
 type Model struct {
@@ -47,6 +48,9 @@ type Model struct {
 
 	filterEditing bool
 	filterQuery   string
+
+	deleteTargets        []worktree.Worktree
+	deleteBranchesToggle bool
 
 	termWidth  int
 	termHeight int
@@ -116,7 +120,14 @@ func (m Model) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 			return m, nil
 		case "space":
 			return m.toggleSelection(), nil
+		case "d":
+			if len(m.selected) > 0 {
+				return m.enterConfirmDelete(), nil
+			}
+			return m, nil
 		}
+	case screenConfirmDelete:
+		return m.handleConfirmKey(msg), nil
 	}
 	return m.delegateToTable(msg)
 }
@@ -135,9 +146,11 @@ func (m Model) delegateToTable(msg tea.Msg) (tea.Model, tea.Cmd) {
 func (m Model) View() tea.View {
 	var content string
 	switch m.screen {
+	case screenConfirmDelete:
+		content = m.confirmDeleteView()
 	case screenWorktrees:
 		content = m.worktreeView()
-	default:
+	case screenRepos:
 		content = m.repoView()
 	}
 	v := tea.NewView(content)

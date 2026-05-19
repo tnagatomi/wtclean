@@ -50,6 +50,46 @@ func isSelectable(w worktree.Worktree) bool {
 	return !slices.Contains(w.Badges, worktree.BadgePrimary)
 }
 
+// hasAnyBadge returns true when w carries at least one of the given
+// badges. Used by the confirm screen to mark warning-bearing rows and to
+// count badge occurrences across a batch.
+func hasAnyBadge(w worktree.Worktree, badges []worktree.Badge) bool {
+	for _, b := range badges {
+		if slices.Contains(w.Badges, b) {
+			return true
+		}
+	}
+	return false
+}
+
+// allMerged reports whether every worktree carries the [merged] badge.
+// Used as the default state for the "Also delete branches" toggle.
+func allMerged(wts []worktree.Worktree) bool {
+	if len(wts) == 0 {
+		return false
+	}
+	for _, w := range wts {
+		if !slices.Contains(w.Badges, worktree.BadgeMerged) {
+			return false
+		}
+	}
+	return true
+}
+
+// badgeCounts tallies how many worktrees carry each of the given badges.
+// Returned map is keyed only by badges that appear at least once.
+func badgeCounts(wts []worktree.Worktree, badges []worktree.Badge) map[worktree.Badge]int {
+	out := map[worktree.Badge]int{}
+	for _, w := range wts {
+		for _, b := range badges {
+			if slices.Contains(w.Badges, b) {
+				out[b]++
+			}
+		}
+	}
+	return out
+}
+
 // checkboxCell renders the selection state of a worktree row. Non-selectable
 // rows (the primary checkout) get a blank cell of the same width so the
 // surrounding columns stay aligned.
