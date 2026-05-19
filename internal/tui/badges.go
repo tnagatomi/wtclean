@@ -44,6 +44,25 @@ var worktreeRowBadgePriority = []worktree.Badge{
 	worktree.BadgeMerged,
 }
 
+// isSelectable returns false for the primary worktree, which the spec
+// designates as not eligible for deletion.
+func isSelectable(w worktree.Worktree) bool {
+	return !slices.Contains(w.Badges, worktree.BadgePrimary)
+}
+
+// checkboxCell renders the selection state of a worktree row. Non-selectable
+// rows (the primary checkout) get a blank cell of the same width so the
+// surrounding columns stay aligned.
+func checkboxCell(w worktree.Worktree, sel bool) string {
+	if !isSelectable(w) {
+		return "   "
+	}
+	if sel {
+		return "[x]"
+	}
+	return "[ ]"
+}
+
 // renderBadges produces a plain, space-separated `[name]` list. Keep this
 // value ANSI-free: bubbles/table truncates raw cell values before rendering,
 // so embedded escape sequences are counted as content and can collapse the
