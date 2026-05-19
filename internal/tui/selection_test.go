@@ -71,7 +71,7 @@ func TestSpaceNotPagingOnWorktreeTable(t *testing.T) {
 		wts[i] = worktree.Worktree{Path: "/repo/wt", Branch: "b"}
 	}
 	repos := []repo.Repo{{Path: "/repo", Worktrees: wts}}
-	m := tea.Model(NewModel(repos))
+	m := tea.Model(NewModel(repos, ModelOptions{}))
 	m, _ = m.Update(tea.WindowSizeMsg{Width: 100, Height: 8})
 	m, _ = m.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
 	m, _ = m.Update(tea.KeyPressMsg{Code: tea.KeySpace})

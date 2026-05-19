@@ -38,6 +38,10 @@ const (
 type Model struct {
 	repos []repo.Repo
 
+	configPath   string
+	configRoots  []string
+	totalScanned int
+
 	screen          screenID
 	selectedRepoIdx int
 
@@ -68,7 +72,17 @@ type Model struct {
 	termHeight int
 }
 
-func NewModel(repos []repo.Repo) Model {
+// ModelOptions carries config context the TUI needs to render
+// empty-state messages and (later) error logs. Optional: NewModel can
+// be called with a zero-value Options for tests that only care about
+// the repo list.
+type ModelOptions struct {
+	ConfigPath   string
+	ConfigRoots  []string
+	TotalScanned int
+}
+
+func NewModel(repos []repo.Repo, opts ModelOptions) Model {
 	repoMaxPath := maxRepoPathWidth(repos)
 	cols, rs := repoLayout(repos, repoMaxPath, 0)
 	t := table.New(
@@ -79,10 +93,13 @@ func NewModel(repos []repo.Repo) Model {
 		table.WithWidth(tableWidth(cols)),
 	)
 	return Model{
-		repos:       repos,
-		screen:      screenRepos,
-		repoTable:   t,
-		repoMaxPath: repoMaxPath,
+		repos:        repos,
+		configPath:   opts.ConfigPath,
+		configRoots:  opts.ConfigRoots,
+		totalScanned: opts.TotalScanned,
+		screen:       screenRepos,
+		repoTable:    t,
+		repoMaxPath:  repoMaxPath,
 	}
 }
 
@@ -194,12 +211,31 @@ func (m Model) View() tea.View {
 }
 
 func (m Model) repoView() string {
-	if len(m.repos) == 0 {
-		return "No repositories with linked worktrees found.\n\nPress q to quit.\n"
+	if msg := m.repoEmptyMessage(); msg != "" {
+		return msg + "\n\nPress q to quit.\n"
 	}
 	title := lipgloss.NewStyle().Bold(true).Render("wtm — repositories")
 	help := faintStyle.Render("[↑/k] up  [↓/j] down  [enter] open  [?] help  [q] quit")
 	return fmt.Sprintf("%s\n%s\n%s\n", title, m.repoTable.View(), help)
+}
+
+// repoEmptyMessage returns the empty-state message for Screen 1, or ""
+// when the screen has repos to render. Two cases survive past the
+// pre-TUI config error path (config missing / zero roots already
+// caught by config.Load):
+//
+//   - The scanner found NO git repositories under any configured root.
+//   - The scanner found git repositories but every one of them only had
+//     a primary worktree (no linked worktrees → all filtered out).
+func (m Model) repoEmptyMessage() string {
+	if len(m.repos) > 0 {
+		return ""
+	}
+
+	if m.totalScanned == 0 {
+		return fmt.Sprintf("No repositories found under: %v\nConfig: %s", m.configRoots, m.configPath)
+	}
+	return "No worktrees found. (Repositories with only primary checkouts are hidden.)"
 }
 
 func (m Model) worktreeView() string {

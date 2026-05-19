@@ -29,9 +29,12 @@ func TestDiscover(t *testing.T) {
 	addWorktree(t, repoC, filepath.Join(root, "c-wt1"), "feat-c1")
 	addWorktree(t, repoC, filepath.Join(root, "c-wt2"), "feat-c2")
 
-	repos, err := Discover([]string{root}, 5)
+	repos, totalScanned, err := Discover([]string{root}, 5)
 	if err != nil {
 		t.Fatalf("Discover: %v", err)
+	}
+	if totalScanned != 3 {
+		t.Errorf("totalScanned: got %d, want 3", totalScanned)
 	}
 	if len(repos) != 2 {
 		t.Fatalf("want 2 repos with linked worktrees, got %d: %+v", len(repos), repos)

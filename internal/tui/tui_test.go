@@ -12,7 +12,7 @@ import (
 )
 
 func TestViewEmpty(t *testing.T) {
-	m := NewModel(nil)
+	m := NewModel(nil, ModelOptions{})
 	view := m.View().Content
 	if !strings.Contains(view, "No repositories") {
 		t.Errorf("empty view missing message: %q", view)
@@ -31,7 +31,7 @@ func TestViewListsRepos(t *testing.T) {
 			Worktrees: make([]worktree.Worktree, 2),
 		},
 	}
-	m := NewModel(repos)
+	m := NewModel(repos, ModelOptions{})
 	view := m.View().Content
 	if !strings.Contains(view, "/home/u/alpha") {
 		t.Errorf("view missing alpha repo: %q", view)
@@ -81,7 +81,7 @@ func TestEnterNavigatesToWorktreeScreen(t *testing.T) {
 			{Path: "/repo-a/wt/feat", Branch: "feat-x", LastCommit: time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)},
 		},
 	}}
-	m := tea.Model(NewModel(repos))
+	m := tea.Model(NewModel(repos, ModelOptions{}))
 	m, _ = m.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
 	got := m.(Model)
 	if got.screen != screenWorktrees {
@@ -110,7 +110,7 @@ func TestEscReturnsToRepoScreen(t *testing.T) {
 			{Path: "/repo-a/wt/feat", Branch: "feat-x"},
 		},
 	}}
-	m := tea.Model(NewModel(repos))
+	m := tea.Model(NewModel(repos, ModelOptions{}))
 	m, _ = m.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
 	m, _ = m.Update(tea.KeyPressMsg{Code: tea.KeyEsc})
 	if got := m.(Model).screen; got != screenRepos {
@@ -119,7 +119,7 @@ func TestEscReturnsToRepoScreen(t *testing.T) {
 }
 
 func TestEnterIgnoredWhenNoRepos(t *testing.T) {
-	m := tea.Model(NewModel(nil))
+	m := tea.Model(NewModel(nil, ModelOptions{}))
 	m, _ = m.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
 	if got := m.(Model).screen; got != screenRepos {
 		t.Errorf("screen with no repos: got %v, want screenRepos", got)

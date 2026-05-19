@@ -16,7 +16,7 @@ import (
 func worktreeScreenModel(t *testing.T, wts []worktree.Worktree) tea.Model {
 	t.Helper()
 	repos := []repo.Repo{{Path: "/repo", Worktrees: wts}}
-	m := tea.Model(NewModel(repos))
+	m := tea.Model(NewModel(repos, ModelOptions{}))
 	m, _ = m.Update(tea.WindowSizeMsg{Width: 100, Height: 20})
 	m, _ = m.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
 	return m

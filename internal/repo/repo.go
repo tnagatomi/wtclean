@@ -41,11 +41,14 @@ const loadConcurrency = 8
 // reads the last fetch timestamp, and returns only repositories with at
 // least one linked worktree, sorted alphabetically by path. Repositories
 // whose git invocation fails are silently dropped — the Path-empty filter
-// below relies on that sentinel.
-func Discover(roots []string, maxDepth int) ([]Repo, error) {
+// below relies on that sentinel. totalScanned reports the number of git
+// repositories the scanner found before the linked-count filter, so the
+// caller can distinguish "no repos at all" from "all repos hidden because
+// they only have a primary worktree".
+func Discover(roots []string, maxDepth int) (filtered []Repo, totalScanned int, err error) {
 	paths, err := scanner.Scan(roots, maxDepth)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 	repos := make([]Repo, len(paths))
 	sem := make(chan struct{}, loadConcurrency)
@@ -63,7 +66,7 @@ func Discover(roots []string, maxDepth int) ([]Repo, error) {
 	}
 	wg.Wait()
 
-	filtered := make([]Repo, 0, len(repos))
+	filtered = make([]Repo, 0, len(repos))
 	for _, r := range repos {
 		if r.Path != "" && r.LinkedCount() > 0 {
 			filtered = append(filtered, r)
@@ -72,7 +75,7 @@ func Discover(roots []string, maxDepth int) ([]Repo, error) {
 	slices.SortFunc(filtered, func(a, b Repo) int {
 		return strings.Compare(a.Path, b.Path)
 	})
-	return filtered, nil
+	return filtered, len(paths), nil
 }
 
 // Load queries a single repository for its worktrees, badge state, and
