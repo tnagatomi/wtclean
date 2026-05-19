@@ -22,6 +22,11 @@ const (
 	chromeRows = 4 // title + table header + help + trailing newline
 )
 
+// faintStyle is the dim-text style used for help lines and status
+// summaries. Defined once so View() does not allocate a fresh style on
+// every render.
+var faintStyle = lipgloss.NewStyle().Faint(true)
+
 type screenID int
 
 const (
@@ -53,6 +58,9 @@ type Model struct {
 	deleteTargets        []worktree.Worktree
 	deleteBranchesToggle bool
 	deleteFailures       []deleter.Failure
+
+	fetching   bool
+	fetchError error
 
 	termWidth  int
 	termHeight int
@@ -89,6 +97,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m.handleKey(msg)
 	case deleteCompleteMsg:
 		return m.applyDeleteResult(msg), nil
+	case fetchCompleteMsg:
+		return m.applyFetchResult(msg), nil
 	}
 	return m.delegateToTable(msg)
 }
@@ -129,6 +139,13 @@ func (m Model) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 				return m.enterConfirmDelete(), nil
 			}
 			return m, nil
+		case "r":
+			if m.fetching {
+				return m, nil
+			}
+			m.fetching = true
+			m.fetchError = nil
+			return m, m.fetchCmd()
 		}
 	case screenConfirmDelete:
 		return m.handleConfirmKey(msg)
@@ -167,7 +184,7 @@ func (m Model) repoView() string {
 		return "No repositories with linked worktrees found.\n\nPress q to quit.\n"
 	}
 	title := lipgloss.NewStyle().Bold(true).Render("wtm — repositories")
-	help := lipgloss.NewStyle().Faint(true).Render("[↑/k] up  [↓/j] down  [enter] open  [q] quit")
+	help := faintStyle.Render("[↑/k] up  [↓/j] down  [enter] open  [q] quit")
 	return fmt.Sprintf("%s\n%s\n%s\n", title, m.repoTable.View(), help)
 }
 
@@ -182,10 +199,16 @@ func (m Model) worktreeView() string {
 		titleText += "    /" + m.filterQuery + cursor
 	}
 	title := lipgloss.NewStyle().Bold(true).Render(titleText)
-	help := lipgloss.NewStyle().Faint(true).Render("[↑/k] up  [↓/j] down  [space] select  [/] filter  [d] delete  [esc] back/clear  [q] quit")
+	help := faintStyle.Render("[↑/k] up  [↓/j] down  [space] select  [/] filter  [d] delete  [r] fetch  [esc] back/clear  [q] quit")
 	body := renderWorktreeTable(m.worktreeTable, m.worktreeVisible)
+	if m.fetching {
+		body += "\n" + faintStyle.Render("⏳ Fetching...")
+	}
+	if m.fetchError != nil {
+		body += "\n" + faintStyle.Render(fmt.Sprintf("⚠ fetch failed: %v", m.fetchError))
+	}
 	if n := len(m.deleteFailures); n > 0 {
-		body += "\n" + lipgloss.NewStyle().Faint(true).Render(fmt.Sprintf("⚠ %d operation(s) failed during last delete", n))
+		body += "\n" + faintStyle.Render(fmt.Sprintf("⚠ %d operation(s) failed during last delete", n))
 	}
 	return fmt.Sprintf("%s\n%s\n%s\n", title, body, help)
 }

@@ -122,7 +122,7 @@ func (m Model) confirmDeleteView() string {
 			}
 		}
 	}
-	help := lipgloss.NewStyle().Faint(true).Render("[y] Confirm    [n] Cancel    [space] toggle branches")
+	help := faintStyle.Render("[y] Confirm    [n] Cancel    [space] toggle branches")
 	fmt.Fprintf(&b, "\n%s\n", help)
 	return b.String()
 }
