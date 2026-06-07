@@ -82,7 +82,7 @@ const StarterContent = `# wtclean configuration file.
 #   roots:
 #     - ~/src
 #     - ~/work
-roots: []
+roots:
 
 # Maximum recursion depth from each root.
 max_depth: 5
