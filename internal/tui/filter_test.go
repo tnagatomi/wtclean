@@ -14,7 +14,7 @@ func filterTestModel(t *testing.T) tea.Model {
 		{Path: "/repo/wt/Alpha", Branch: "release"},
 		{Path: "/repo/wt/beta", Branch: "feat-foo"},
 		{Path: "/repo/wt/gamma", Branch: "dirty",
-			Badges: []worktree.Badge{worktree.BadgeDirty}},
+			Badges: []worktree.Badge{worktree.BadgeUncommitted}},
 	})
 }
 

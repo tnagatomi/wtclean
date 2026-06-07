@@ -27,7 +27,7 @@ type Worktree struct {
 	// not carry commit metadata.
 	LastCommit time.Time
 
-	// Badges summarize derived state (merged, dirty, etc.) for the UI.
+	// Badges summarize derived state (merged, uncommitted, etc.) for the UI.
 	// Parse leaves this nil; the repo package fills it after consulting
 	// the working tree, the default branch, and upstream tracking refs.
 	Badges []Badge
@@ -39,11 +39,11 @@ type Badge int
 const (
 	BadgePrimary Badge = iota
 	BadgeMerged
-	BadgeGone
-	BadgeDirty
+	BadgeUpstreamGone
+	BadgeUncommitted
 	BadgeUnpushed
 	BadgeLocked
-	BadgeMissing
+	BadgeNoDir
 )
 
 // HasAnyBadge returns true when w carries at least one of badges. Used by
@@ -63,16 +63,16 @@ func (b Badge) String() string {
 		return "primary"
 	case BadgeMerged:
 		return "merged"
-	case BadgeGone:
-		return "gone"
-	case BadgeDirty:
-		return "dirty"
+	case BadgeUpstreamGone:
+		return "upstream-gone"
+	case BadgeUncommitted:
+		return "uncommitted"
 	case BadgeUnpushed:
 		return "unpushed"
 	case BadgeLocked:
 		return "locked"
-	case BadgeMissing:
-		return "missing"
+	case BadgeNoDir:
+		return "no-dir"
 	}
 	return ""
 }

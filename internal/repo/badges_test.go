@@ -63,7 +63,7 @@ func TestPopulateBadgesDirty(t *testing.T) {
 	if err != nil {
 		t.Fatalf("load: %v", err)
 	}
-	if !hasBadge(r.Worktrees[1], worktree.BadgeDirty) {
+	if !hasBadge(r.Worktrees[1], worktree.BadgeUncommitted) {
 		t.Errorf("worktree with untracked file should be dirty: %+v", r.Worktrees[1].Badges)
 	}
 }
@@ -101,7 +101,7 @@ func TestPopulateBadgesMissing(t *testing.T) {
 	if err != nil {
 		t.Fatalf("load: %v", err)
 	}
-	if !hasBadge(r.Worktrees[1], worktree.BadgeMissing) {
+	if !hasBadge(r.Worktrees[1], worktree.BadgeNoDir) {
 		t.Errorf("removed worktree should carry missing badge: %+v", r.Worktrees[1].Badges)
 	}
 }

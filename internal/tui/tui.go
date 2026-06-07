@@ -163,6 +163,8 @@ func (m Model) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 			return m, nil
 		case "space":
 			return m.toggleSelection(), nil
+		case "s":
+			return m.toggleSafeSelection(), nil
 		case "d":
 			if len(m.selected) > 0 {
 				return m.enterConfirmDelete(), nil
@@ -249,7 +251,7 @@ func (m Model) worktreeView() string {
 		titleText += "    /" + m.filterQuery + cursor
 	}
 	title := lipgloss.NewStyle().Bold(true).Render(titleText)
-	help := faintStyle.Render("[↑/k] up  [↓/j] down  [space] select  [/] filter  [d] delete  [r] fetch  [?] help  [esc] back/clear  [q] quit")
+	help := faintStyle.Render("[↑/k] up  [↓/j] down  [space] select  [s] select safe  [/] filter  [d] delete  [r] fetch  [?] help  [esc] back/clear  [q] quit")
 	body := renderWorktreeTable(m.worktreeTable, m.worktreeVisible)
 	if m.fetching {
 		body += "\n" + faintStyle.Render("⏳ Fetching...")
@@ -423,6 +425,41 @@ func (m Model) toggleSelection() Model {
 		delete(m.selected, w.Path)
 	} else {
 		m.selected[w.Path] = true
+	}
+	_, rs := worktreeLayout(m.worktreeVisible, m.selected, m.worktreeMaxPath, m.worktreeMaxBranch, m.worktreeMaxBadges, m.termWidth)
+	m.worktreeTable.SetRows(rs)
+	return m
+}
+
+// toggleSafeSelection toggles selection across the safe-to-remove worktrees
+// that are currently visible. If every visible safe-to-remove worktree is
+// already selected, they are all deselected; otherwise they are all selected.
+// Worktrees outside that set — non-safe rows and rows hidden by the active
+// filter — are never touched, so a manual selection survives a press of `s`.
+// An empty visible safe set is a no-op.
+func (m Model) toggleSafeSelection() Model {
+	var safe []string
+	for _, w := range m.worktreeVisible {
+		if isSafeToRemove(w) {
+			safe = append(safe, w.Path)
+		}
+	}
+	if len(safe) == 0 {
+		return m
+	}
+	allSelected := true
+	for _, p := range safe {
+		if !m.selected[p] {
+			allSelected = false
+			break
+		}
+	}
+	for _, p := range safe {
+		if allSelected {
+			delete(m.selected, p)
+		} else {
+			m.selected[p] = true
+		}
 	}
 	_, rs := worktreeLayout(m.worktreeVisible, m.selected, m.worktreeMaxPath, m.worktreeMaxBranch, m.worktreeMaxBadges, m.termWidth)
 	m.worktreeTable.SetRows(rs)

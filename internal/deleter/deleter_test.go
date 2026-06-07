@@ -35,7 +35,7 @@ func TestDeleteForcesWhenDirty(t *testing.T) {
 	mustRun(t, "sh", "-c", "echo dirty > "+filepath.Join(wtPath, "f.txt"))
 
 	failures := Delete(repo, []worktree.Worktree{
-		{Path: wtPath, Branch: "wip", Badges: []worktree.Badge{worktree.BadgeDirty}},
+		{Path: wtPath, Branch: "wip", Badges: []worktree.Badge{worktree.BadgeUncommitted}},
 	}, false)
 	if len(failures) != 0 {
 		t.Fatalf("dirty force-remove should succeed: %v", failures)
@@ -69,7 +69,7 @@ func TestDeletePrunesMissingWorktree(t *testing.T) {
 	}
 
 	failures := Delete(repo, []worktree.Worktree{
-		{Path: wtPath, Branch: "ghost", Badges: []worktree.Badge{worktree.BadgeMissing}},
+		{Path: wtPath, Branch: "ghost", Badges: []worktree.Badge{worktree.BadgeNoDir}},
 	}, false)
 	if len(failures) != 0 {
 		t.Fatalf("prune should succeed for missing: %v", failures)
@@ -119,7 +119,7 @@ func TestDeleteContinuesOnError(t *testing.T) {
 
 	failures := Delete(repo, []worktree.Worktree{
 		{Path: "/nonexistent/path", Branch: "ghost"}, // fails
-		{Path: wtPath, Branch: "ok"},                  // should still succeed
+		{Path: wtPath, Branch: "ok"},                 // should still succeed
 	}, false)
 	if len(failures) != 1 {
 		t.Fatalf("expected exactly one failure, got %d: %v", len(failures), failures)

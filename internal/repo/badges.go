@@ -11,14 +11,14 @@ import (
 
 // populateBadges fills Worktree.Badges for every entry in wts. Badge
 // detection is intentionally local-only: no `git fetch` is invoked, so
-// `merged` and `gone` reflect the most recent fetch state — the spec
+// `merged` and `upstream-gone` reflect the most recent fetch state — the spec
 // surfaces that staleness via the Screen 1 last-fetch column.
 func populateBadges(repoPath string, wts []worktree.Worktree) {
 	if len(wts) == 0 {
 		return
 	}
 
-	missing := make([]bool, len(wts))
+	noDir := make([]bool, len(wts))
 	for i := range wts {
 		// Git lists the main worktree first.
 		if i == 0 {
@@ -27,9 +27,9 @@ func populateBadges(repoPath string, wts []worktree.Worktree) {
 		if wts[i].Locked {
 			wts[i].Badges = append(wts[i].Badges, worktree.BadgeLocked)
 		}
-		missing[i] = wts[i].Prunable || !dirExists(wts[i].Path)
-		if missing[i] {
-			wts[i].Badges = append(wts[i].Badges, worktree.BadgeMissing)
+		noDir[i] = wts[i].Prunable || !dirExists(wts[i].Path)
+		if noDir[i] {
+			wts[i].Badges = append(wts[i].Badges, worktree.BadgeNoDir)
 		}
 	}
 
@@ -44,7 +44,7 @@ func populateBadges(repoPath string, wts []worktree.Worktree) {
 		}
 		if t, ok := track[wts[i].Branch]; ok {
 			if t.gone {
-				wts[i].Badges = append(wts[i].Badges, worktree.BadgeGone)
+				wts[i].Badges = append(wts[i].Badges, worktree.BadgeUpstreamGone)
 			}
 			if t.ahead > 0 {
 				wts[i].Badges = append(wts[i].Badges, worktree.BadgeUnpushed)
@@ -53,11 +53,11 @@ func populateBadges(repoPath string, wts []worktree.Worktree) {
 	}
 
 	for i := range wts {
-		if missing[i] || wts[i].Bare {
+		if noDir[i] || wts[i].Bare {
 			continue
 		}
 		if isDirty(wts[i].Path) {
-			wts[i].Badges = append(wts[i].Badges, worktree.BadgeDirty)
+			wts[i].Badges = append(wts[i].Badges, worktree.BadgeUncommitted)
 		}
 	}
 }
