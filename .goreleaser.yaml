@@ -1,0 +1,84 @@
+# GoReleaser configuration for wtclean.
+# Triggered by pushing a git tag (see .github/workflows/release.yml).
+# Docs: https://goreleaser.com
+version: 2
+
+before:
+  hooks:
+    - go mod tidy
+
+builds:
+  - id: wtclean
+    main: ./cmd/wtclean
+    binary: wtclean
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - darwin
+      - windows
+    goarch:
+      - amd64
+      - arm64
+    # Inject the version into the variable read by `wtclean --version`.
+    ldflags:
+      - -s -w -X github.com/tnagatomi/wtclean/internal/cli.Version={{ .Version }}
+
+archives:
+  - id: wtclean
+    formats: [tar.gz]
+    name_template: >-
+      {{ .ProjectName }}_
+      {{- .Os }}_
+      {{- if eq .Arch "amd64" }}x86_64
+      {{- else if eq .Arch "386" }}i386
+      {{- else }}{{ .Arch }}{{ end }}
+    # Use zip for Windows.
+    format_overrides:
+      - goos: windows
+        formats: [zip]
+
+checksum:
+  name_template: "checksums.txt"
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+      - "^chore:"
+      - "Merge pull request"
+      - "Merge branch"
+
+# Publish a Homebrew Cask into tnagatomi/homebrew-tap.
+# Casks are the current recommended format for distributing CLI binaries.
+homebrew_casks:
+  - name: wtclean
+    binaries: [wtclean]
+    homepage: "https://github.com/tnagatomi/wtclean"
+    description: "TUI tool that lists and deletes git worktrees across multiple projects"
+    license: "MIT"
+    repository:
+      owner: tnagatomi
+      name: homebrew-tap
+      branch: main
+      # A PAT with write access to the tap repository, since it lives
+      # outside this repo and the default GITHUB_TOKEN cannot push there.
+      token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
+    commit_author:
+      name: goreleaserbot
+      email: bot@goreleaser.com
+    # The released binaries are not code-signed, so macOS Gatekeeper would
+    # quarantine them. Strip the attribute on install so the cask just works.
+    hooks:
+      post:
+        install: |
+          if OS.mac?
+            system_command "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "#{staged_path}/wtclean"]
+          end
+
+release:
+  github:
+    owner: tnagatomi
+    name: wtclean
