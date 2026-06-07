@@ -7,10 +7,10 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 
-	"github.com/tnagatomi/wtm/internal/deleter"
-	"github.com/tnagatomi/wtm/internal/repo"
-	"github.com/tnagatomi/wtm/internal/worktree"
-	"github.com/tnagatomi/wtm/internal/wtmlog"
+	"github.com/tnagatomi/wtclean/internal/deleter"
+	"github.com/tnagatomi/wtclean/internal/repo"
+	"github.com/tnagatomi/wtclean/internal/worktree"
+	"github.com/tnagatomi/wtclean/internal/wtcleanlog"
 )
 
 // deleteCompleteMsg is dispatched from the goroutine that runs the
@@ -89,7 +89,7 @@ func (m Model) deleteCmd() tea.Cmd {
 // clears the selection and filter as a side-effect of enterWorktrees).
 // Reload failures keep the stale repo data — the user can re-enter the
 // repo from Screen 1 to retry. Any deleter failures are also pushed to
-// the wtmlog file via the returned Cmd so the user can inspect the
+// the wtcleanlog file via the returned Cmd so the user can inspect the
 // full per-op error text later.
 func (m Model) applyDeleteResult(msg deleteCompleteMsg) (Model, tea.Cmd) {
 	if r, err := repo.Load(m.repos[m.selectedRepoIdx].Path); err == nil {
@@ -101,7 +101,7 @@ func (m Model) applyDeleteResult(msg deleteCompleteMsg) (Model, tea.Cmd) {
 }
 
 // logDeleteFailuresCmd returns a tea.Cmd that appends a one-line
-// record per Failure to the wtmlog file. Log write errors are silently
+// record per Failure to the wtcleanlog file. Log write errors are silently
 // swallowed — the log is the failure-detail sink, so a broken sink has
 // nowhere meaningful to report. Returns nil when there are no
 // failures so the bubbletea runtime has nothing to dispatch.
@@ -111,7 +111,7 @@ func logDeleteFailuresCmd(failures []deleter.Failure) tea.Cmd {
 	}
 	return func() tea.Msg {
 		for _, f := range failures {
-			_ = wtmlog.Append(fmt.Sprintf("delete:%s %s: %v", f.Op, f.Path, f.Err))
+			_ = wtcleanlog.Append(fmt.Sprintf("delete:%s %s: %v", f.Op, f.Path, f.Err))
 		}
 		return nil
 	}

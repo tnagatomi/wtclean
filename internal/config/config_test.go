@@ -93,8 +93,8 @@ func TestLoadMissingFile(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error for missing file")
 	}
-	if !strings.Contains(err.Error(), "wtm init") {
-		t.Errorf("error should suggest `wtm init`, got: %v", err)
+	if !strings.Contains(err.Error(), "wtclean init") {
+		t.Errorf("error should suggest `wtclean init`, got: %v", err)
 	}
 }
 
@@ -105,7 +105,7 @@ func TestDefaultPath(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		want := "/custom/xdg/wtm/config.yml"
+		want := "/custom/xdg/wtclean/config.yml"
 		if got != want {
 			t.Errorf("got %q, want %q", got, want)
 		}
@@ -118,7 +118,7 @@ func TestDefaultPath(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		want := "/home/test/.config/wtm/config.yml"
+		want := "/home/test/.config/wtclean/config.yml"
 		if got != want {
 			t.Errorf("got %q, want %q", got, want)
 		}
@@ -138,7 +138,7 @@ func TestStarterContent(t *testing.T) {
 	}
 
 	// Loading the starter should fail with the empty-roots error so users
-	// know they must edit the file before wtm is usable.
+	// know they must edit the file before wtclean is usable.
 	path := filepath.Join(t.TempDir(), "config.yml")
 	if err := os.WriteFile(path, []byte(StarterContent), 0o644); err != nil {
 		t.Fatal(err)

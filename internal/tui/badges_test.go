@@ -8,7 +8,7 @@ import (
 	"charm.land/lipgloss/v2/compat"
 	"github.com/charmbracelet/x/ansi"
 
-	"github.com/tnagatomi/wtm/internal/worktree"
+	"github.com/tnagatomi/wtclean/internal/worktree"
 )
 
 func TestRenderBadgesEmpty(t *testing.T) {

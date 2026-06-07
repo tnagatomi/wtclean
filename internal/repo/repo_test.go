@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/tnagatomi/wtm/internal/worktree"
+	"github.com/tnagatomi/wtclean/internal/worktree"
 )
 
 func TestDiscover(t *testing.T) {

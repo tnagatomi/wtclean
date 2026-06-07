@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/tnagatomi/wtm/internal/worktree"
+	"github.com/tnagatomi/wtclean/internal/worktree"
 )
 
 func TestDeleteRemovesPlainWorktree(t *testing.T) {

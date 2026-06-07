@@ -1,15 +1,15 @@
-# wtm — Initial Specification
+# wtclean — Initial Specification
 
 Date: 2026-05-17
 Status: Design (pre-implementation)
 
 ## Purpose
 
-`wtm` is a TUI tool for developers that lists and deletes git worktrees across multiple projects. The primary use case is cleaning up stale worktrees that accumulate across repositories over time.
+`wtclean` is a TUI tool for developers that lists and deletes git worktrees across multiple projects. The primary use case is cleaning up stale worktrees that accumulate across repositories over time.
 
 ## Stack
 
-- **Go 1.26.3**, module path `github.com/tnagatomi/wtm`
+- **Go 1.26.3**, module path `github.com/tnagatomi/wtclean`
 - **bubbletea + bubbles + lipgloss** for the TUI
 - **cobra** for CLI dispatch
 - **goccy/go-yaml** for config parsing
@@ -29,8 +29,8 @@ Status: Design (pre-implementation)
 
 ## Configuration
 
-- Location: `~/.config/wtm/config.yml` (XDG-compliant).
-- A `wtm init` subcommand generates a starter file.
+- Location: `~/.config/wtclean/config.yml` (XDG-compliant).
+- A `wtclean init` subcommand generates a starter file.
 - Schema (MVP):
 
 ```yaml
@@ -107,7 +107,7 @@ Layout:
 ```
 Deleting 3 worktrees:
 
-    /Users/.../wtm/wt/feat-x      [merged]
+    /Users/.../wtclean/wt/feat-x      [merged]
   ⚠ /Users/.../api/wt/wip         [dirty][unpushed]
   ⚠ /Users/.../infra/wt/exp       [locked]
 
@@ -146,17 +146,17 @@ Rules:
 
 - Continue-on-error across all operations (scan, fetch, remove, prune).
 - One-line summary per failure is shown in the TUI results area.
-- Full details are appended to `~/.local/state/wtm/wtm.log` (XDG_STATE_HOME).
+- Full details are appended to `~/.local/state/wtclean/wtclean.log` (XDG_STATE_HOME).
 - Startup scan shows a `scanning N/M repos` progress indicator; delete and fetch show a spinner.
 
 ## CLI Surface
 
-- `wtm` (no arguments) — launch the TUI
-- `wtm init` — write a starter `config.toml`
-- `wtm --version` / `-v`
-- `wtm --help` / `-h`
+- `wtclean` (no arguments) — launch the TUI
+- `wtclean init` — write a starter `config.toml`
+- `wtclean --version` / `-v`
+- `wtclean --help` / `-h`
 
-Reserved for later phases: `wtm doctor`, `wtm list --json`, `wtm rm`, `--config <path>`.
+Reserved for later phases: `wtclean doctor`, `wtclean list --json`, `wtclean rm`, `--config <path>`.
 
 ## Color and Styling
 
@@ -173,21 +173,21 @@ Reserved for later phases: `wtm doctor`, `wtm list --json`, `wtm rm`, `--config 
 
 | Situation | Message |
 | --- | --- |
-| Config file missing | Error: run `wtm init` to generate a starter file. |
+| Config file missing | Error: run `wtclean init` to generate a starter file. |
 | Config file has zero roots | Error: edit `config.toml` to add at least one root. |
 | No repositories found under any root | `No repositories found under: ...` plus the config path. |
 | All repositories filtered out (only primaries exist) | `No worktrees found. (Repositories with only primary checkouts are hidden.)` |
 
 ## Distribution
 
-- `go install github.com/tnagatomi/wtm@latest`
+- `go install github.com/tnagatomi/wtclean@latest`
 - GoReleaser pushes per-OS binaries to GitHub Releases on tag.
-- Homebrew tap: existing `tnagatomi/homebrew-tap` receives a new `Formula/wtm.rb`. Install via `brew install tnagatomi/tap/wtm`.
+- Homebrew tap: existing `tnagatomi/homebrew-tap` receives a new `Formula/wtclean.rb`. Install via `brew install tnagatomi/tap/wtclean`.
 
 ## CI and Release Authentication
 
 - GitHub Actions runs tests on pull requests and the release pipeline on tag push.
-- Cross-repo write (wtm → homebrew-tap) is authenticated with a **GitHub App installation token**, minted at workflow time via `actions/create-github-app-token@v1`.
+- Cross-repo write (wtclean → homebrew-tap) is authenticated with a **GitHub App installation token**, minted at workflow time via `actions/create-github-app-token@v1`.
 - No personal access token is used.
 
 Workflow sketch:
@@ -199,7 +199,7 @@ Workflow sketch:
     app-id: ${{ secrets.APP_ID }}
     private-key: ${{ secrets.APP_PRIVATE_KEY }}
     owner: tnagatomi
-    repositories: wtm,homebrew-tap
+    repositories: wtclean,homebrew-tap
 - uses: goreleaser/goreleaser-action@v6
   env:
     GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}

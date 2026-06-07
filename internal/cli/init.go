@@ -8,7 +8,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/tnagatomi/wtm/internal/config"
+	"github.com/tnagatomi/wtclean/internal/config"
 )
 
 func newInitCmd() *cobra.Command {

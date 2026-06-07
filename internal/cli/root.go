@@ -4,18 +4,18 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/spf13/cobra"
 
-	"github.com/tnagatomi/wtm/internal/config"
-	"github.com/tnagatomi/wtm/internal/repo"
-	"github.com/tnagatomi/wtm/internal/tui"
+	"github.com/tnagatomi/wtclean/internal/config"
+	"github.com/tnagatomi/wtclean/internal/repo"
+	"github.com/tnagatomi/wtclean/internal/tui"
 )
 
 var Version = "dev"
 
 func NewRootCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:           "wtm",
+		Use:           "wtclean",
 		Short:         "Manage git worktrees across multiple projects",
-		Long:          "wtm is a TUI tool that lists and deletes git worktrees across multiple projects.",
+		Long:          "wtclean is a TUI tool that lists and deletes git worktrees across multiple projects.",
 		Version:       Version,
 		SilenceUsage:  true,
 		SilenceErrors: true,

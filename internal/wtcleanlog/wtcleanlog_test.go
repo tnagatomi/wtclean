@@ -1,4 +1,4 @@
-package wtmlog
+package wtcleanlog
 
 import (
 	"os"
@@ -14,12 +14,12 @@ func TestPathUsesXDGStateHomeWhenSet(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Path: %v", err)
 	}
-	want := filepath.Join(dir, "wtm", "wtm.log")
+	want := filepath.Join(dir, "wtclean", "wtclean.log")
 	if got != want {
 		t.Errorf("path: got %q, want %q", got, want)
 	}
-	// The wtm/ parent should exist after the call.
-	if _, err := os.Stat(filepath.Join(dir, "wtm")); err != nil {
+	// The wtclean/ parent should exist after the call.
+	if _, err := os.Stat(filepath.Join(dir, "wtclean")); err != nil {
 		t.Errorf("Path should create the parent dir: %v", err)
 	}
 }
@@ -32,7 +32,7 @@ func TestPathFallsBackToLocalState(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Path: %v", err)
 	}
-	want := filepath.Join(dir, ".local", "state", "wtm", "wtm.log")
+	want := filepath.Join(dir, ".local", "state", "wtclean", "wtclean.log")
 	if got != want {
 		t.Errorf("path: got %q, want %q", got, want)
 	}
@@ -47,7 +47,7 @@ func TestAppendWritesTimestampedLine(t *testing.T) {
 	if err := Append("fetch /repo: timeout"); err != nil {
 		t.Fatalf("Append (second): %v", err)
 	}
-	data, err := os.ReadFile(filepath.Join(dir, "wtm", "wtm.log"))
+	data, err := os.ReadFile(filepath.Join(dir, "wtclean", "wtclean.log"))
 	if err != nil {
 		t.Fatalf("ReadFile: %v", err)
 	}

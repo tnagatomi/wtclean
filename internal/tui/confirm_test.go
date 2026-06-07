@@ -9,8 +9,8 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
-	"github.com/tnagatomi/wtm/internal/deleter"
-	"github.com/tnagatomi/wtm/internal/worktree"
+	"github.com/tnagatomi/wtclean/internal/deleter"
+	"github.com/tnagatomi/wtclean/internal/worktree"
 )
 
 // confirmScreenModel returns a Model parked on the confirm screen with
@@ -192,7 +192,7 @@ func TestDeleteFailuresAreAppendedToLog(t *testing.T) {
 	}
 	cmd() // execute the log cmd inline
 
-	data, err := os.ReadFile(filepath.Join(dir, "wtm", "wtm.log"))
+	data, err := os.ReadFile(filepath.Join(dir, "wtclean", "wtclean.log"))
 	if err != nil {
 		t.Fatalf("ReadFile: %v", err)
 	}

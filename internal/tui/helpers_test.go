@@ -6,8 +6,8 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
-	"github.com/tnagatomi/wtm/internal/repo"
-	"github.com/tnagatomi/wtm/internal/worktree"
+	"github.com/tnagatomi/wtclean/internal/repo"
+	"github.com/tnagatomi/wtclean/internal/worktree"
 )
 
 // worktreeScreenModel returns a Model parked on Screen 2 for a single
