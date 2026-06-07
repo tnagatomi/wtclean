@@ -21,9 +21,9 @@ func TestRenderBadgesContainsLabels(t *testing.T) {
 	rendered := renderBadges([]worktree.Badge{
 		worktree.BadgePrimary,
 		worktree.BadgeMerged,
-		worktree.BadgeDirty,
+		worktree.BadgeUncommitted,
 	})
-	for _, want := range []string{"[primary]", "[merged]", "[dirty]"} {
+	for _, want := range []string{"[primary]", "[merged]", "[uncommitted]"} {
 		if !strings.Contains(rendered, want) {
 			t.Errorf("rendered badges missing %q: %q", want, rendered)
 		}
@@ -39,7 +39,7 @@ func TestPlainBadgesWidth(t *testing.T) {
 		{"empty", nil, 0},
 		{"primary alone is 9", []worktree.Badge{worktree.BadgePrimary}, 9},
 		{"merged alone is 8", []worktree.Badge{worktree.BadgeMerged}, 8},
-		{"dirty alone is 7", []worktree.Badge{worktree.BadgeDirty}, 7},
+		{"uncommitted alone is 13", []worktree.Badge{worktree.BadgeUncommitted}, 13},
 		{"primary plus merged is 18", []worktree.Badge{worktree.BadgePrimary, worktree.BadgeMerged}, 18},
 	}
 	for _, c := range cases {
@@ -54,12 +54,12 @@ func TestPlainBadgesWidth(t *testing.T) {
 func TestBadgesVisibleWidthMatchesLongest(t *testing.T) {
 	wts := []worktree.Worktree{
 		{Badges: []worktree.Badge{worktree.BadgePrimary}},
-		{Badges: []worktree.Badge{worktree.BadgeMerged, worktree.BadgeDirty}},
+		{Badges: []worktree.Badge{worktree.BadgeMerged, worktree.BadgeUncommitted}},
 		{Badges: nil},
 	}
-	// "[merged] [dirty]" has visible width 8 + 1 + 7 = 16.
-	if got := badgesVisibleWidth(wts); got != 16 {
-		t.Errorf("badgesVisibleWidth = %d, want 16", got)
+	// "[merged] [uncommitted]" has visible width 8 + 1 + 13 = 22.
+	if got := badgesVisibleWidth(wts); got != 22 {
+		t.Errorf("badgesVisibleWidth = %d, want 22", got)
 	}
 }
 
@@ -103,7 +103,7 @@ func TestRenderWorktreeTableColorsRowsByBadge(t *testing.T) {
 
 	wts := []worktree.Worktree{
 		{Path: "/repo", Branch: "main"},
-		{Path: "/repo/wt/dirty", Branch: "dirty", Badges: []worktree.Badge{worktree.BadgeDirty}},
+		{Path: "/repo/wt/dirty", Branch: "dirty", Badges: []worktree.Badge{worktree.BadgeUncommitted}},
 		{Path: "/repo/wt/primary", Branch: "main", Badges: []worktree.Badge{worktree.BadgePrimary, worktree.BadgeMerged}},
 	}
 	pathWidth, branchWidth := maxWorktreeWidths(wts)
@@ -119,7 +119,7 @@ func TestRenderWorktreeTableColorsRowsByBadge(t *testing.T) {
 	view := renderWorktreeTable(tb, wts)
 	stripped := ansi.Strip(view)
 
-	for _, want := range []string{"[dirty]", "[primary] [merged]"} {
+	for _, want := range []string{"[uncommitted]", "[primary] [merged]"} {
 		if !strings.Contains(stripped, want) {
 			t.Fatalf("view missing full badge %q: %q", want, stripped)
 		}

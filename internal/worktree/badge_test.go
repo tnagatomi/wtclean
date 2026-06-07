@@ -9,11 +9,11 @@ func TestBadgeString(t *testing.T) {
 	}{
 		{BadgePrimary, "primary"},
 		{BadgeMerged, "merged"},
-		{BadgeGone, "gone"},
-		{BadgeDirty, "dirty"},
+		{BadgeUpstreamGone, "upstream-gone"},
+		{BadgeUncommitted, "uncommitted"},
 		{BadgeUnpushed, "unpushed"},
 		{BadgeLocked, "locked"},
-		{BadgeMissing, "missing"},
+		{BadgeNoDir, "no-dir"},
 		{Badge(-1), ""},
 	}
 	for _, c := range cases {

@@ -12,13 +12,13 @@ import (
 )
 
 var worktreeRowStyles = map[worktree.Badge]lipgloss.Style{
-	worktree.BadgePrimary:  lipgloss.NewStyle().Foreground(adaptive("240", "245")),
-	worktree.BadgeMerged:   lipgloss.NewStyle().Foreground(adaptive("28", "82")),
-	worktree.BadgeGone:     lipgloss.NewStyle().Foreground(adaptive("130", "220")),
-	worktree.BadgeDirty:    lipgloss.NewStyle().Foreground(adaptive("160", "203")),
-	worktree.BadgeUnpushed: lipgloss.NewStyle().Foreground(adaptive("160", "203")),
-	worktree.BadgeLocked:   lipgloss.NewStyle().Foreground(adaptive("93", "141")),
-	worktree.BadgeMissing:  lipgloss.NewStyle().Foreground(adaptive("240", "245")),
+	worktree.BadgePrimary:      lipgloss.NewStyle().Foreground(adaptive("240", "245")),
+	worktree.BadgeMerged:       lipgloss.NewStyle().Foreground(adaptive("28", "82")),
+	worktree.BadgeUpstreamGone: lipgloss.NewStyle().Foreground(adaptive("130", "220")),
+	worktree.BadgeUncommitted:  lipgloss.NewStyle().Foreground(adaptive("160", "203")),
+	worktree.BadgeUnpushed:     lipgloss.NewStyle().Foreground(adaptive("160", "203")),
+	worktree.BadgeLocked:       lipgloss.NewStyle().Foreground(adaptive("93", "141")),
+	worktree.BadgeNoDir:        lipgloss.NewStyle().Foreground(adaptive("240", "245")),
 }
 
 // adaptive returns a lipgloss color that resolves to light when the
@@ -31,15 +31,15 @@ func adaptive(light, dark string) compat.AdaptiveColor {
 }
 
 // worktreeRowBadgePriority orders badges by how much each should dominate
-// a row's foreground color: action-required states first (dirty/unpushed/
-// locked/gone/missing), then informational ones (primary/merged). The
-// first match in this slice wins.
+// a row's foreground color: action-required states first (uncommitted/
+// unpushed/locked/upstream-gone/no-dir), then informational ones
+// (primary/merged). The first match in this slice wins.
 var worktreeRowBadgePriority = []worktree.Badge{
-	worktree.BadgeDirty,
+	worktree.BadgeUncommitted,
 	worktree.BadgeUnpushed,
 	worktree.BadgeLocked,
-	worktree.BadgeGone,
-	worktree.BadgeMissing,
+	worktree.BadgeUpstreamGone,
+	worktree.BadgeNoDir,
 	worktree.BadgePrimary,
 	worktree.BadgeMerged,
 }
@@ -48,6 +48,22 @@ var worktreeRowBadgePriority = []worktree.Badge{
 // designates as not eligible for deletion.
 func isSelectable(w worktree.Worktree) bool {
 	return !slices.Contains(w.Badges, worktree.BadgePrimary)
+}
+
+// safeToRemovePositive lists the badges that count as positive evidence a
+// worktree is disposable; safeToRemoveWarning lists the states whose presence
+// means removal would lose local-only work. See CONTEXT.md ("Safe-to-remove").
+var (
+	safeToRemovePositive = []worktree.Badge{worktree.BadgeMerged, worktree.BadgeUpstreamGone, worktree.BadgeNoDir}
+	safeToRemoveWarning  = []worktree.Badge{worktree.BadgeUncommitted, worktree.BadgeUnpushed, worktree.BadgeLocked}
+)
+
+// isSafeToRemove reports whether w is the kind of worktree the `s` bulk-select
+// key should pick. See CONTEXT.md ("Safe-to-remove") for the definition.
+func isSafeToRemove(w worktree.Worktree) bool {
+	return isSelectable(w) &&
+		w.HasAnyBadge(safeToRemovePositive) &&
+		!w.HasAnyBadge(safeToRemoveWarning)
 }
 
 // allMerged reports whether every worktree carries the [merged] badge.

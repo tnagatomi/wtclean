@@ -67,6 +67,7 @@ var helpGroups = []helpGroup{
 			{"ctrl+v / alt+v", "page down / up"},
 			{"g / G", "jump to top / bottom"},
 			{"space", "toggle selection on focused row"},
+			{"s", "select all safe-to-remove worktrees"},
 			{"/", "start incremental filter"},
 			{"d", "open delete confirmation"},
 			{"r", "fetch this repo and reload"},
@@ -88,6 +89,23 @@ var helpGroups = []helpGroup{
 			{"y", "confirm deletion"},
 			{"n  /  esc", "cancel back to Screen 2"},
 			{"space", "toggle [Also delete branches]"},
+		},
+	},
+	{
+		title: "Badges — safe to remove",
+		entries: []helpEntry{
+			{"[merged]", "branch is merged into the default branch"},
+			{"[upstream-gone]", "the branch's upstream was deleted (often a merged PR)"},
+			{"[no-dir]", "the working directory is already gone"},
+		},
+	},
+	{
+		title: "Badges — removal loses local work",
+		entries: []helpEntry{
+			{"[uncommitted]", "has changes not yet committed"},
+			{"[unpushed]", "has commits not yet pushed"},
+			{"[locked]", "deliberately protected with a worktree lock"},
+			{"[primary]", "the main checkout; never selectable"},
 		},
 	},
 }

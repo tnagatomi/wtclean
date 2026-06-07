@@ -41,7 +41,7 @@ func (f Failure) Error() string {
 // happen to coincide today but are conceptually distinct (one drives
 // --force, the other drives the warnings block on the confirm screen).
 var forceRemoveBadges = []worktree.Badge{
-	worktree.BadgeDirty,
+	worktree.BadgeUncommitted,
 	worktree.BadgeUnpushed,
 	worktree.BadgeLocked,
 }
@@ -49,14 +49,14 @@ var forceRemoveBadges = []worktree.Badge{
 // Delete runs the configured deletion plan against targets in repoPath.
 // Each target is treated independently; a failure on one does not stop
 // the rest. A single `git worktree prune` is appended once at the end
-// when any target carried [missing], since prune is repo-wide rather
+// when any target carried [no-dir], since prune is repo-wide rather
 // than per-path.
 func Delete(repoPath string, targets []worktree.Worktree, alsoBranches bool) []Failure {
 	var failures []Failure
-	anyMissing := false
+	anyNoDir := false
 	for _, w := range targets {
-		if slices.Contains(w.Badges, worktree.BadgeMissing) {
-			anyMissing = true
+		if slices.Contains(w.Badges, worktree.BadgeNoDir) {
+			anyNoDir = true
 			continue
 		}
 		if slices.Contains(w.Badges, worktree.BadgeLocked) {
@@ -79,7 +79,7 @@ func Delete(repoPath string, targets []worktree.Worktree, alsoBranches bool) []F
 			}
 		}
 	}
-	if anyMissing {
+	if anyNoDir {
 		if err := run(repoPath, "worktree", "prune"); err != nil {
 			failures = append(failures, Failure{Path: repoPath, Op: OpPrune, Err: err})
 		}

@@ -21,7 +21,7 @@ func confirmScreenModel(t *testing.T) tea.Model {
 	m := worktreeScreenModel(t, []worktree.Worktree{
 		{Path: "/repo", Branch: "main", Badges: []worktree.Badge{worktree.BadgePrimary}},
 		{Path: "/repo/wt/feat", Branch: "feat", Badges: []worktree.Badge{worktree.BadgeMerged}},
-		{Path: "/repo/wt/wip", Branch: "wip", Badges: []worktree.Badge{worktree.BadgeDirty}},
+		{Path: "/repo/wt/wip", Branch: "wip", Badges: []worktree.Badge{worktree.BadgeUncommitted}},
 	})
 	// Select both non-primary rows.
 	m, _ = m.Update(tea.KeyPressMsg{Code: tea.KeyDown})
@@ -88,8 +88,8 @@ func TestConfirmViewShowsWarningCounts(t *testing.T) {
 	if !strings.Contains(view, "⚠ Warnings (deletion will be forced):") {
 		t.Errorf("view missing warnings block header: %q", view)
 	}
-	if !strings.Contains(view, "dirty:") || !strings.Contains(view, "(1)") {
-		t.Errorf("view missing dirty warning count: %q", view)
+	if !strings.Contains(view, "uncommitted:") || !strings.Contains(view, "(1)") {
+		t.Errorf("view missing uncommitted warning count: %q", view)
 	}
 }
 
@@ -233,4 +233,3 @@ func TestDKeyDoesNotHalfPageDownOnWorktreeTable(t *testing.T) {
 		t.Fatalf("d should not page the cursor on the worktree table; cursor=%d", got)
 	}
 }
-

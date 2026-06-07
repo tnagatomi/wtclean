@@ -25,7 +25,7 @@ type deleteCompleteMsg struct {
 // list with a `⚠` prefix and add a per-kind line to the warnings block.
 // Forcing the deletion is implied — there is no per-warning toggle.
 var warningBadges = []worktree.Badge{
-	worktree.BadgeDirty,
+	worktree.BadgeUncommitted,
 	worktree.BadgeUnpushed,
 	worktree.BadgeLocked,
 }
@@ -34,9 +34,9 @@ var warningBadges = []worktree.Badge{
 // confirmation summary. Kept here so the confirm view and any future help
 // overlay describe the consequences in the same words.
 var warningMessages = map[worktree.Badge]string{
-	worktree.BadgeDirty:    "uncommitted changes will be lost",
-	worktree.BadgeUnpushed: "commits not pushed will be lost",
-	worktree.BadgeLocked:   "the lock will be released",
+	worktree.BadgeUncommitted: "uncommitted changes will be lost",
+	worktree.BadgeUnpushed:    "commits not pushed will be lost",
+	worktree.BadgeLocked:      "the lock will be released",
 }
 
 // enterConfirmDelete captures the currently selected worktrees as the
