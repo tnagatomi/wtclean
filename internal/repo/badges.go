@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/tnagatomi/wtm/internal/worktree"
+	"github.com/tnagatomi/wtclean/internal/worktree"
 )
 
 // populateBadges fills Worktree.Badges for every entry in wts. Badge

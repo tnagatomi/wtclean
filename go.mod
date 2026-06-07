@@ -1,4 +1,4 @@
-module github.com/tnagatomi/wtm
+module github.com/tnagatomi/wtclean
 
 go 1.26
 

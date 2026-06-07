@@ -4,13 +4,13 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/tnagatomi/wtm/internal/repo"
+	"github.com/tnagatomi/wtclean/internal/repo"
 )
 
 func TestRepoEmptyMessage_NoScannedRepos(t *testing.T) {
 	// Case 3: scanner found NO git repos under any configured root.
 	m := NewModel(nil, ModelOptions{
-		ConfigPath:   "/home/u/.config/wtm/config.yml",
+		ConfigPath:   "/home/u/.config/wtclean/config.yml",
 		ConfigRoots:  []string{"/home/u/src", "/home/u/work"},
 		TotalScanned: 0,
 	})
@@ -21,7 +21,7 @@ func TestRepoEmptyMessage_NoScannedRepos(t *testing.T) {
 	if !strings.Contains(view, "/home/u/src") {
 		t.Errorf("view should list the configured roots: %q", view)
 	}
-	if !strings.Contains(view, "/home/u/.config/wtm/config.yml") {
+	if !strings.Contains(view, "/home/u/.config/wtclean/config.yml") {
 		t.Errorf("view should reference the config path: %q", view)
 	}
 }
@@ -30,7 +30,7 @@ func TestRepoEmptyMessage_AllRepoFilteredOut(t *testing.T) {
 	// Case 4: scanner found git repos but every one of them only had a
 	// primary worktree, so the filter dropped them all.
 	m := NewModel(nil, ModelOptions{
-		ConfigPath:   "/home/u/.config/wtm/config.yml",
+		ConfigPath:   "/home/u/.config/wtclean/config.yml",
 		ConfigRoots:  []string{"/home/u/src"},
 		TotalScanned: 5,
 	})

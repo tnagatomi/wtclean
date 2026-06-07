@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/tnagatomi/wtm/internal/cli"
+	"github.com/tnagatomi/wtclean/internal/cli"
 )
 
 func main() {

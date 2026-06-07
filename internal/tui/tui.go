@@ -1,4 +1,4 @@
-// Package tui implements the bubbletea user interface for wtm.
+// Package tui implements the bubbletea user interface for wtclean.
 package tui
 
 import (
@@ -10,9 +10,9 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 
-	"github.com/tnagatomi/wtm/internal/deleter"
-	"github.com/tnagatomi/wtm/internal/repo"
-	"github.com/tnagatomi/wtm/internal/worktree"
+	"github.com/tnagatomi/wtclean/internal/deleter"
+	"github.com/tnagatomi/wtclean/internal/repo"
+	"github.com/tnagatomi/wtclean/internal/worktree"
 )
 
 const (
@@ -214,7 +214,7 @@ func (m Model) repoView() string {
 	if msg := m.repoEmptyMessage(); msg != "" {
 		return msg + "\n\nPress q to quit.\n"
 	}
-	title := lipgloss.NewStyle().Bold(true).Render("wtm — repositories")
+	title := lipgloss.NewStyle().Bold(true).Render("wtclean — repositories")
 	help := faintStyle.Render("[↑/k] up  [↓/j] down  [enter] open  [?] help  [q] quit")
 	return fmt.Sprintf("%s\n%s\n%s\n", title, m.repoTable.View(), help)
 }
@@ -240,7 +240,7 @@ func (m Model) repoEmptyMessage() string {
 
 func (m Model) worktreeView() string {
 	r := m.repos[m.selectedRepoIdx]
-	titleText := fmt.Sprintf("wtm — worktrees in %s", r.Path)
+	titleText := fmt.Sprintf("wtclean — worktrees in %s", r.Path)
 	if m.filterEditing || m.filterQuery != "" {
 		cursor := ""
 		if m.filterEditing {

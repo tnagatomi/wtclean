@@ -6,7 +6,7 @@ import (
 	"slices"
 	"testing"
 
-	"github.com/tnagatomi/wtm/internal/worktree"
+	"github.com/tnagatomi/wtclean/internal/worktree"
 )
 
 func TestPopulateBadgesPrimary(t *testing.T) {

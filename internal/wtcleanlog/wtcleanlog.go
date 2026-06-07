@@ -1,8 +1,8 @@
-// Package wtmlog writes per-failure one-line records to a state-home
+// Package wtcleanlog writes per-failure one-line records to a state-home
 // log file. The TUI surfaces a short summary on-screen while the full
 // detail (including timestamps and error text) goes here for later
 // debugging.
-package wtmlog
+package wtcleanlog
 
 import (
 	"fmt"
@@ -13,8 +13,8 @@ import (
 
 // Path returns the log-file path, creating its parent directory if it
 // does not already exist. Resolution follows the XDG Base Directory
-// spec: $XDG_STATE_HOME/wtm/wtm.log, falling back to
-// ~/.local/state/wtm/wtm.log when XDG_STATE_HOME is unset or empty.
+// spec: $XDG_STATE_HOME/wtclean/wtclean.log, falling back to
+// ~/.local/state/wtclean/wtclean.log when XDG_STATE_HOME is unset or empty.
 func Path() (string, error) {
 	base := os.Getenv("XDG_STATE_HOME")
 	if base == "" {
@@ -24,7 +24,7 @@ func Path() (string, error) {
 		}
 		base = filepath.Join(home, ".local", "state")
 	}
-	path := filepath.Join(base, "wtm", "wtm.log")
+	path := filepath.Join(base, "wtclean", "wtclean.log")
 	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
 		return "", fmt.Errorf("create log directory: %w", err)
 	}

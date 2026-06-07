@@ -5,9 +5,9 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
-	"github.com/tnagatomi/wtm/internal/fetcher"
-	"github.com/tnagatomi/wtm/internal/repo"
-	"github.com/tnagatomi/wtm/internal/wtmlog"
+	"github.com/tnagatomi/wtclean/internal/fetcher"
+	"github.com/tnagatomi/wtclean/internal/repo"
+	"github.com/tnagatomi/wtclean/internal/wtcleanlog"
 )
 
 // fetchCompleteMsg is dispatched from the fetch goroutine back into the
@@ -77,10 +77,10 @@ func logFetchFailuresCmd(repoPath string, msg fetchCompleteMsg) tea.Cmd {
 	}
 	return func() tea.Msg {
 		if msg.fetchErr != nil {
-			_ = wtmlog.Append(fmt.Sprintf("fetch:fetch %s: %v", repoPath, msg.fetchErr))
+			_ = wtcleanlog.Append(fmt.Sprintf("fetch:fetch %s: %v", repoPath, msg.fetchErr))
 		}
 		if msg.loadErr != nil {
-			_ = wtmlog.Append(fmt.Sprintf("fetch:reload %s: %v", repoPath, msg.loadErr))
+			_ = wtcleanlog.Append(fmt.Sprintf("fetch:reload %s: %v", repoPath, msg.loadErr))
 		}
 		return nil
 	}

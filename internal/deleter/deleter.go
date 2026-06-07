@@ -8,7 +8,7 @@ import (
 	"os/exec"
 	"slices"
 
-	"github.com/tnagatomi/wtm/internal/worktree"
+	"github.com/tnagatomi/wtclean/internal/worktree"
 )
 
 // Op names the git operation that failed; carried on Failure so callers

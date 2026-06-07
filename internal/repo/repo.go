@@ -12,8 +12,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/tnagatomi/wtm/internal/scanner"
-	"github.com/tnagatomi/wtm/internal/worktree"
+	"github.com/tnagatomi/wtclean/internal/scanner"
+	"github.com/tnagatomi/wtclean/internal/worktree"
 )
 
 type Repo struct {

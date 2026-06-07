@@ -11,7 +11,7 @@ import (
 // shows the same overlay regardless of where the user pressed it.
 func helpView() string {
 	var b strings.Builder
-	b.WriteString(lipgloss.NewStyle().Bold(true).Render("wtm — keyboard reference"))
+	b.WriteString(lipgloss.NewStyle().Bold(true).Render("wtclean — keyboard reference"))
 	b.WriteString("\n\n")
 	for _, g := range helpGroups {
 		b.WriteString(lipgloss.NewStyle().Bold(true).Render(g.title))
