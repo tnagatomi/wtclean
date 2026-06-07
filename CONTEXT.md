@@ -44,6 +44,24 @@ The worktree's working directory has been deleted by hand; only an
 administrative record of it remains.
 _Avoid_: missing, prunable
 
+### Data freshness
+
+Two distinct user actions bring the displayed state up to date. They differ in
+scope (all repositories vs. one) and in whether they touch the network.
+
+**Refresh**:
+Re-derive the whole repository list from the filesystem: rescan the configured
+roots and re-read every repository's worktrees and badges. Picks up
+repositories and worktrees created or deleted outside the app since startup.
+Local only — it never contacts a remote. The repository-list screen's action.
+_Avoid_: reload, rescan
+
+**Fetch**:
+Contact the remote for a single repository, then re-read that one repository's
+state. Network-bound; updates remote-derived badges such as _upstream-gone_.
+The worktree screen's action. Distinct from _refresh_, which is local and
+spans every repository.
+
 ### Selection
 
 **Safe-to-remove**:
