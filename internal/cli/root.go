@@ -5,7 +5,6 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/tnagatomi/wtclean/internal/config"
-	"github.com/tnagatomi/wtclean/internal/repo"
 	"github.com/tnagatomi/wtclean/internal/tui"
 )
 
@@ -34,14 +33,14 @@ func runTUI(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	repos, totalScanned, err := repo.Discover(cfg.Roots, cfg.MaxDepth)
-	if err != nil {
-		return err
-	}
-	prog := tea.NewProgram(tui.NewModel(repos, tui.ModelOptions{
-		ConfigPath:   path,
-		ConfigRoots:  cfg.Roots,
-		TotalScanned: totalScanned,
+	// Discovery is deferred to the TUI's Init so the repository list is
+	// scanned asynchronously, sharing the `r` refresh code path; config is
+	// still loaded synchronously here since a bad config leaves nothing to
+	// show. See docs/adr/0001-async-startup-scan.md.
+	prog := tea.NewProgram(tui.NewScanning(tui.ModelOptions{
+		ConfigPath:  path,
+		ConfigRoots: cfg.Roots,
+		MaxDepth:    cfg.MaxDepth,
 	}))
 	_, err = prog.Run()
 	return err

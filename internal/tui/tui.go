@@ -40,6 +40,7 @@ type Model struct {
 
 	configPath   string
 	configRoots  []string
+	configDepth  int
 	totalScanned int
 
 	screen          screenID
@@ -66,6 +67,9 @@ type Model struct {
 	fetching   bool
 	fetchError error
 
+	scanning  bool
+	scanError error
+
 	helpVisible bool
 
 	termWidth  int
@@ -79,6 +83,7 @@ type Model struct {
 type ModelOptions struct {
 	ConfigPath   string
 	ConfigRoots  []string
+	MaxDepth     int
 	TotalScanned int
 }
 
@@ -96,6 +101,7 @@ func NewModel(repos []repo.Repo, opts ModelOptions) Model {
 		repos:        repos,
 		configPath:   opts.ConfigPath,
 		configRoots:  opts.ConfigRoots,
+		configDepth:  opts.MaxDepth,
 		totalScanned: opts.TotalScanned,
 		screen:       screenRepos,
 		repoTable:    t,
@@ -103,7 +109,26 @@ func NewModel(repos []repo.Repo, opts ModelOptions) Model {
 	}
 }
 
-func (m Model) Init() tea.Cmd { return nil }
+// NewScanning builds the model the production entry point starts with: no
+// repos yet and scanning already set, so the first frame shows the scanning
+// indicator and Init dispatches the discovery off the main goroutine. The
+// repository list is then populated by the resulting scanCompleteMsg, sharing
+// the exact code path the `r` refresh action uses.
+func NewScanning(opts ModelOptions) Model {
+	m := NewModel(nil, opts)
+	m.scanning = true
+	return m
+}
+
+// Init dispatches the initial scan when the model was constructed in the
+// scanning state (the production path); a model seeded with repos for tests
+// has nothing to load.
+func (m Model) Init() tea.Cmd {
+	if m.scanning {
+		return m.scanCmd()
+	}
+	return nil
+}
 
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
@@ -118,6 +143,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m.applyDeleteResult(msg)
 	case fetchCompleteMsg:
 		return m.applyFetchResult(msg)
+	case scanCompleteMsg:
+		return m.applyScanResult(msg)
 	}
 	return m.delegateToTable(msg)
 }
@@ -146,9 +173,19 @@ func (m Model) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	}
 	switch m.screen {
 	case screenRepos:
-		if msg.String() == "enter" && len(m.repos) > 0 {
-			m = m.enterWorktrees(m.repoTable.Cursor())
+		switch msg.String() {
+		case "enter":
+			if len(m.repos) > 0 {
+				m = m.enterWorktrees(m.repoTable.Cursor())
+			}
 			return m, nil
+		case "r":
+			if m.scanning {
+				return m, nil
+			}
+			m.scanning = true
+			m.scanError = nil
+			return m, m.scanCmd()
 		}
 	case screenWorktrees:
 		switch msg.String() {
@@ -213,12 +250,31 @@ func (m Model) View() tea.View {
 }
 
 func (m Model) repoView() string {
+	title := lipgloss.NewStyle().Bold(true).Render("wtclean — repositories")
+	// While the very first scan is still in flight there are no repos to
+	// render yet; show only the indicator so the user doesn't see a flash
+	// of the "no repositories" empty state before data arrives.
+	if m.scanning && len(m.repos) == 0 {
+		return fmt.Sprintf("%s\n%s\n", title, faintStyle.Render("⏳ Scanning..."))
+	}
+	// A scan failure that left us with no repos must show the error rather
+	// than the "no repositories" empty state, which would misattribute the
+	// failure to an empty filesystem.
+	if m.scanError != nil && len(m.repos) == 0 {
+		return fmt.Sprintf("%s\n%s\n\nPress r to retry, q to quit.\n", title, faintStyle.Render(fmt.Sprintf("⚠ scan failed: %v", m.scanError)))
+	}
 	if msg := m.repoEmptyMessage(); msg != "" {
 		return msg + "\n\nPress q to quit.\n"
 	}
-	title := lipgloss.NewStyle().Bold(true).Render("wtclean — repositories")
-	help := faintStyle.Render("[↑/k] up  [↓/j] down  [enter] open  [?] help  [q] quit")
-	return fmt.Sprintf("%s\n%s\n%s\n", title, m.repoTable.View(), help)
+	help := faintStyle.Render("[↑/k] up  [↓/j] down  [enter] open  [r] refresh  [?] help  [q] quit")
+	status := ""
+	switch {
+	case m.scanning:
+		status = "\n" + faintStyle.Render("⏳ Scanning...")
+	case m.scanError != nil:
+		status = "\n" + faintStyle.Render(fmt.Sprintf("⚠ scan failed: %v", m.scanError))
+	}
+	return fmt.Sprintf("%s\n%s\n%s%s\n", title, m.repoTable.View(), help, status)
 }
 
 // repoEmptyMessage returns the empty-state message for Screen 1, or ""

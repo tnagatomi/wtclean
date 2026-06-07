@@ -57,6 +57,7 @@ var helpGroups = []helpGroup{
 			{"↓ / j  /  ctrl+n", "next repo"},
 			{"g / G", "jump to top / bottom"},
 			{"enter", "open repo (go to Screen 2)"},
+			{"r", "refresh the repository list (local rescan)"},
 		},
 	},
 	{
