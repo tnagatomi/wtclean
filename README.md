@@ -53,6 +53,14 @@ go install github.com/tnagatomi/wtclean/cmd/wtclean@latest
 
    # Maximum recursion depth from each root.
    max_depth: 5
+
+   # Directory names to prune during the scan (filepath.Match globs, matched
+   # against each directory's base name). The starter file ships with common
+   # dependency and build directories; trim it to the languages you use.
+   skip:
+     - node_modules
+     - target
+     - vendor
    ```
 
 3. Launch the TUI:
@@ -118,6 +126,12 @@ safe-to-remove: the absence of warnings is not evidence that it is disposable.
 | ----------- | --------------------------------------------------------------- | ------- |
 | `roots`     | Root directories to scan, walked recursively. `~` expands to home. | —    |
 | `max_depth` | Maximum recursion depth from each root.                         | `5`     |
+| `skip`      | Directory base names to prune (`filepath.Match` globs). Speeds up scans by keeping the walk out of git-unmanaged dependency/build trees. | starter list |
+
+> **Note:** The walk already stops at the first `.git`, so dependency trees
+> *inside* a repository (the common case) are never traversed and need no `skip`
+> entry. `skip` matters for large **git-unmanaged** trees that sit under a root —
+> for example a loose `node_modules` with no enclosing repository.
 
 The config file lives at `$XDG_CONFIG_HOME/wtclean/config.yml`, falling back to
 `~/.config/wtclean/config.yml`.

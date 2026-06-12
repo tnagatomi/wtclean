@@ -29,7 +29,7 @@ func TestDiscover(t *testing.T) {
 	addWorktree(t, repoC, filepath.Join(root, "c-wt1"), "feat-c1")
 	addWorktree(t, repoC, filepath.Join(root, "c-wt2"), "feat-c2")
 
-	repos, totalScanned, err := Discover([]string{root}, 5)
+	repos, totalScanned, err := Discover([]string{root}, 5, nil)
 	if err != nil {
 		t.Fatalf("Discover: %v", err)
 	}

@@ -12,8 +12,11 @@ import (
 
 // Scan walks each root up to maxDepth and returns the discovered repository
 // paths, deduplicated and sorted alphabetically. Inaccessible directories
-// (permission denied, transient I/O errors) are skipped silently.
-func Scan(roots []string, maxDepth int) ([]string, error) {
+// (permission denied, transient I/O errors) are skipped silently. Directories
+// whose base name matches any glob in skip (filepath.Match syntax) are pruned
+// before descending, keeping the walk out of large dependency and build trees
+// such as node_modules or target.
+func Scan(roots []string, maxDepth int, skip []string) ([]string, error) {
 	perRoot := make([][]string, len(roots))
 	errs := make([]error, len(roots))
 	var wg sync.WaitGroup
@@ -24,7 +27,7 @@ func Scan(roots []string, maxDepth int) ([]string, error) {
 				errs[i] = err
 				return
 			}
-			perRoot[i] = walkRoot(abs, maxDepth)
+			perRoot[i] = walkRoot(abs, maxDepth, skip)
 		})
 	}
 	wg.Wait()
@@ -50,7 +53,9 @@ func Scan(roots []string, maxDepth int) ([]string, error) {
 // walkRoot recursively walks root in parallel. Each directory level is
 // processed by its own goroutine; siblings run concurrently so a single root
 // containing many top-level repositories still benefits from parallelism.
-func walkRoot(root string, maxDepth int) []string {
+// Subdirectories whose base name matches a skip glob are pruned before they
+// are descended into.
+func walkRoot(root string, maxDepth int, skip []string) []string {
 	var (
 		mu    sync.Mutex
 		repos []string
@@ -81,6 +86,9 @@ func walkRoot(root string, maxDepth int) []string {
 			if !e.IsDir() {
 				continue
 			}
+			if skipMatch(skip, e.Name()) {
+				continue
+			}
 			sub := filepath.Join(path, e.Name())
 			wg.Go(func() {
 				walk(sub, depth+1)
@@ -90,6 +98,20 @@ func walkRoot(root string, maxDepth int) []string {
 	wg.Go(func() { walk(root, 0) })
 	wg.Wait()
 	return repos
+}
+
+// skipMatch reports whether name matches any of the skip globs. Patterns use
+// filepath.Match syntax and are tested against the directory's base name, so a
+// pattern like "node_modules" or "*.egg-info" prunes that directory wherever
+// it appears in the tree. Malformed patterns (rejected at config load) never
+// match.
+func skipMatch(skip []string, name string) bool {
+	for _, pat := range skip {
+		if ok, err := filepath.Match(pat, name); err == nil && ok {
+			return true
+		}
+	}
+	return false
 }
 
 // classify inspects path and reports whether it is a repository and whether

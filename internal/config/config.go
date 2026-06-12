@@ -16,6 +16,7 @@ const DefaultMaxDepth = 5
 type Config struct {
 	Roots    []string `yaml:"roots"`
 	MaxDepth int      `yaml:"max_depth"`
+	Skip     []string `yaml:"skip"`
 }
 
 // DefaultPath returns the canonical config file path, honoring XDG_CONFIG_HOME.
@@ -52,6 +53,11 @@ func Load(path string) (*Config, error) {
 	if cfg.MaxDepth <= 0 {
 		cfg.MaxDepth = DefaultMaxDepth
 	}
+	for _, pat := range cfg.Skip {
+		if _, err := filepath.Match(pat, ""); err != nil {
+			return nil, fmt.Errorf("config %q has an invalid skip pattern %q: %w", path, pat, err)
+		}
+	}
 	home, err := os.UserHomeDir()
 	if err != nil {
 		return nil, fmt.Errorf("resolve home directory: %w", err)
@@ -86,4 +92,38 @@ roots:
 
 # Maximum recursion depth from each root.
 max_depth: 5
+
+# Directory names to prune during the scan. Any directory whose base name
+# matches one of these globs (filepath.Match syntax) is skipped together with
+# everything beneath it, keeping the walk out of large dependency and build
+# trees. This speeds up scanning, at the cost of not discovering repositories
+# nested inside a skipped directory. Trim the list to the languages you use.
+skip:
+  # Node.js / JavaScript / TypeScript
+  - node_modules
+  # Rust / Maven
+  - target
+  # Python
+  - .venv
+  - venv
+  - __pycache__
+  - .mypy_cache
+  - .pytest_cache
+  - .tox
+  - "*.egg-info"
+  # Go / PHP / Ruby
+  - vendor
+  # Java / Kotlin / Gradle
+  - .gradle
+  # .NET
+  - bin
+  - obj
+  # Swift / Xcode
+  - .build
+  - DerivedData
+  # Common build output and caches
+  - build
+  - dist
+  - out
+  - .cache
 `
