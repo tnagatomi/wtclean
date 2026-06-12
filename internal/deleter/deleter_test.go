@@ -129,6 +129,46 @@ func TestDeleteContinuesOnError(t *testing.T) {
 	}
 }
 
+func TestDeleteRemovesManyWorktreesInParallel(t *testing.T) {
+	requireGit(t)
+	repo, _ := setupWorktree(t, "first")
+	var targets []worktree.Worktree
+	targets = append(targets, worktree.Worktree{Path: filepath.Join(filepath.Dir(repo), "wt-first"), Branch: "first"})
+	for i := 0; i < 9; i++ {
+		branch := "p" + string(rune('a'+i))
+		wtPath := filepath.Join(filepath.Dir(repo), "wt-"+branch)
+		mustRun(t, "git", "-C", repo, "worktree", "add", "-q", "-b", branch, wtPath)
+		targets = append(targets, worktree.Worktree{Path: wtPath, Branch: branch})
+	}
+
+	failures := Delete(repo, targets, false)
+	if len(failures) != 0 {
+		t.Fatalf("unexpected failures: %v", failures)
+	}
+	if listWorktrees(t, repo) != 1 {
+		t.Errorf("porcelain should list only the primary after removing all")
+	}
+}
+
+func TestDeleteFailureOrderMatchesTargets(t *testing.T) {
+	requireGit(t)
+	repo, wtPath := setupWorktree(t, "ok")
+
+	// Two failing targets bracketing a successful one: their failures must
+	// surface in targets order, not in worker-completion order.
+	failures := Delete(repo, []worktree.Worktree{
+		{Path: "/nonexistent/a", Branch: "a"},
+		{Path: wtPath, Branch: "ok"},
+		{Path: "/nonexistent/b", Branch: "b"},
+	}, false)
+	if len(failures) != 2 {
+		t.Fatalf("expected two failures, got %d: %v", len(failures), failures)
+	}
+	if failures[0].Path != "/nonexistent/a" || failures[1].Path != "/nonexistent/b" {
+		t.Errorf("failures out of order: %v", failures)
+	}
+}
+
 func setupWorktree(t *testing.T, branch string) (repo, wtPath string) {
 	t.Helper()
 	repo = filepath.Join(t.TempDir(), "repo")
