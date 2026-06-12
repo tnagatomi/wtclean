@@ -41,6 +41,7 @@ func runTUI(cmd *cobra.Command, args []string) error {
 		ConfigPath:  path,
 		ConfigRoots: cfg.Roots,
 		MaxDepth:    cfg.MaxDepth,
+		Skip:        cfg.Skip,
 	}))
 	_, err = prog.Run()
 	return err

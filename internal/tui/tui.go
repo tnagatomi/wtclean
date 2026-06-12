@@ -41,6 +41,7 @@ type Model struct {
 	configPath   string
 	configRoots  []string
 	configDepth  int
+	configSkip   []string
 	totalScanned int
 
 	screen          screenID
@@ -85,6 +86,7 @@ type ModelOptions struct {
 	ConfigPath   string
 	ConfigRoots  []string
 	MaxDepth     int
+	Skip         []string
 	TotalScanned int
 }
 
@@ -103,6 +105,7 @@ func NewModel(repos []repo.Repo, opts ModelOptions) Model {
 		configPath:   opts.ConfigPath,
 		configRoots:  opts.ConfigRoots,
 		configDepth:  opts.MaxDepth,
+		configSkip:   opts.Skip,
 		totalScanned: opts.TotalScanned,
 		screen:       screenRepos,
 		repoTable:    t,

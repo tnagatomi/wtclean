@@ -19,6 +19,7 @@ func TestLoad(t *testing.T) {
 		content      string
 		wantRoots    []string
 		wantMaxDepth int
+		wantSkip     []string
 		wantErr      string
 	}{
 		{
@@ -49,6 +50,29 @@ roots:
 `,
 			wantRoots:    []string{home},
 			wantMaxDepth: DefaultMaxDepth,
+		},
+		{
+			name: "skip globs are parsed",
+			content: `
+roots:
+  - /only
+skip:
+  - node_modules
+  - "*.egg-info"
+`,
+			wantRoots:    []string{"/only"},
+			wantMaxDepth: DefaultMaxDepth,
+			wantSkip:     []string{"node_modules", "*.egg-info"},
+		},
+		{
+			name: "invalid skip pattern errors",
+			content: `
+roots:
+  - /only
+skip:
+  - "[bad"
+`,
+			wantErr: "invalid skip pattern",
 		},
 		{
 			name:    "empty roots errors",
@@ -83,6 +107,9 @@ roots:
 			}
 			if !slices.Equal(cfg.Roots, tc.wantRoots) {
 				t.Errorf("Roots: got %v, want %v", cfg.Roots, tc.wantRoots)
+			}
+			if !slices.Equal(cfg.Skip, tc.wantSkip) {
+				t.Errorf("Skip: got %v, want %v", cfg.Skip, tc.wantSkip)
 			}
 		})
 	}
@@ -135,6 +162,11 @@ func TestStarterContent(t *testing.T) {
 	}
 	if len(cfg.Roots) != 0 {
 		t.Errorf("starter should have empty roots, got %v", cfg.Roots)
+	}
+	// The starter ships representative per-language skip globs so a fresh
+	// install scans quickly out of the box; node_modules is the canonical one.
+	if !slices.Contains(cfg.Skip, "node_modules") {
+		t.Errorf("starter Skip should include node_modules, got %v", cfg.Skip)
 	}
 
 	// Loading the starter should fail with the empty-roots error so users

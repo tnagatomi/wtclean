@@ -28,8 +28,9 @@ type scanCompleteMsg struct {
 func (m Model) scanCmd() tea.Cmd {
 	roots := m.configRoots
 	depth := m.configDepth
+	skip := m.configSkip
 	return func() tea.Msg {
-		repos, totalScanned, err := repo.Discover(roots, depth)
+		repos, totalScanned, err := repo.Discover(roots, depth, skip)
 		return scanCompleteMsg{repos: repos, totalScanned: totalScanned, err: err}
 	}
 }
