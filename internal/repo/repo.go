@@ -45,8 +45,8 @@ const loadConcurrency = 8
 // repositories the scanner found before the linked-count filter, so the
 // caller can distinguish "no repos at all" from "all repos hidden because
 // they only have a primary worktree".
-func Discover(roots []string, maxDepth int, skip []string) (filtered []Repo, totalScanned int, err error) {
-	paths, err := scanner.Scan(roots, maxDepth, skip)
+func Discover(roots []scanner.Root, skip []string) (filtered []Repo, totalScanned int, err error) {
+	paths, err := scanner.Scan(roots, skip)
 	if err != nil {
 		return nil, 0, err
 	}

@@ -5,13 +5,14 @@ import (
 	"testing"
 
 	"github.com/tnagatomi/wtclean/internal/repo"
+	"github.com/tnagatomi/wtclean/internal/scanner"
 )
 
 func TestRepoEmptyMessage_NoScannedRepos(t *testing.T) {
 	// Case 3: scanner found NO git repos under any configured root.
 	m := NewModel(nil, ModelOptions{
 		ConfigPath:   "/home/u/.config/wtclean/config.yml",
-		ConfigRoots:  []string{"/home/u/src", "/home/u/work"},
+		ScanRoots:    []scanner.Root{{Path: "/home/u/src"}, {Path: "/home/u/work"}},
 		TotalScanned: 0,
 	})
 	view := m.View().Content
@@ -31,7 +32,7 @@ func TestRepoEmptyMessage_AllRepoFilteredOut(t *testing.T) {
 	// primary worktree, so the filter dropped them all.
 	m := NewModel(nil, ModelOptions{
 		ConfigPath:   "/home/u/.config/wtclean/config.yml",
-		ConfigRoots:  []string{"/home/u/src"},
+		ScanRoots:    []scanner.Root{{Path: "/home/u/src"}},
 		TotalScanned: 5,
 	})
 	view := m.View().Content

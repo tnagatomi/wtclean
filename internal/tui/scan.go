@@ -26,11 +26,10 @@ type scanCompleteMsg struct {
 // at startup — refresh re-derives the repository list from the filesystem but
 // never re-reads config.
 func (m Model) scanCmd() tea.Cmd {
-	roots := m.configRoots
-	depth := m.configDepth
+	roots := m.scanRoots
 	skip := m.configSkip
 	return func() tea.Msg {
-		repos, totalScanned, err := repo.Discover(roots, depth, skip)
+		repos, totalScanned, err := repo.Discover(roots, skip)
 		return scanCompleteMsg{repos: repos, totalScanned: totalScanned, err: err}
 	}
 }

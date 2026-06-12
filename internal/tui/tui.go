@@ -12,6 +12,7 @@ import (
 
 	"github.com/tnagatomi/wtclean/internal/deleter"
 	"github.com/tnagatomi/wtclean/internal/repo"
+	"github.com/tnagatomi/wtclean/internal/scanner"
 	"github.com/tnagatomi/wtclean/internal/worktree"
 )
 
@@ -39,8 +40,7 @@ type Model struct {
 	repos []repo.Repo
 
 	configPath   string
-	configRoots  []string
-	configDepth  int
+	scanRoots    []scanner.Root
 	configSkip   []string
 	totalScanned int
 
@@ -83,8 +83,7 @@ type Model struct {
 // the repo list.
 type ModelOptions struct {
 	ConfigPath   string
-	ConfigRoots  []string
-	MaxDepth     int
+	ScanRoots    []scanner.Root
 	Skip         []string
 	TotalScanned int
 }
@@ -102,8 +101,7 @@ func NewModel(repos []repo.Repo, opts ModelOptions) Model {
 	return Model{
 		repos:        repos,
 		configPath:   opts.ConfigPath,
-		configRoots:  opts.ConfigRoots,
-		configDepth:  opts.MaxDepth,
+		scanRoots:    opts.ScanRoots,
 		configSkip:   opts.Skip,
 		totalScanned: opts.TotalScanned,
 		screen:       screenRepos,
@@ -294,7 +292,11 @@ func (m Model) repoEmptyMessage() string {
 	}
 
 	if m.totalScanned == 0 {
-		return fmt.Sprintf("No repositories found under: %v\nConfig: %s", m.configRoots, m.configPath)
+		paths := make([]string, len(m.scanRoots))
+		for i, r := range m.scanRoots {
+			paths[i] = r.Path
+		}
+		return fmt.Sprintf("No repositories found under: %v\nConfig: %s", paths, m.configPath)
 	}
 	return "No worktrees found. (Repositories with only primary checkouts are hidden.)"
 }

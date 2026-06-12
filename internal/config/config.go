@@ -14,9 +14,47 @@ import (
 const DefaultMaxDepth = 5
 
 type Config struct {
-	Roots    []string `yaml:"roots"`
+	Roots    []Root   `yaml:"roots"`
 	MaxDepth int      `yaml:"max_depth"`
 	Skip     []string `yaml:"skip"`
+}
+
+// Root is a configured scan root. After Load it carries an absolute-ready
+// (tilde-expanded) Path and a resolved MaxDepth: either the per-root override
+// or, when none was given, the global max_depth.
+type Root struct {
+	Path     string
+	MaxDepth int
+}
+
+// UnmarshalYAML accepts a root written either as a bare string (just the path,
+// inheriting the global max_depth) or as a mapping with an explicit per-root
+// depth. This keeps existing `roots: [~/src]` configs working while letting a
+// noisy root be scanned shallowly:
+//
+//	roots:
+//	  - ~/src
+//	  - path: ~/Downloads
+//	    max_depth: 2
+func (r *Root) UnmarshalYAML(unmarshal func(any) error) error {
+	var path string
+	if err := unmarshal(&path); err == nil {
+		r.Path = path
+		return nil
+	}
+	var aux struct {
+		Path     string `yaml:"path"`
+		MaxDepth int    `yaml:"max_depth"`
+	}
+	if err := unmarshal(&aux); err != nil {
+		return err
+	}
+	if aux.Path == "" {
+		return errors.New("root entry must have a non-empty path")
+	}
+	r.Path = aux.Path
+	r.MaxDepth = aux.MaxDepth
+	return nil
 }
 
 // DefaultPath returns the canonical config file path, honoring XDG_CONFIG_HOME.
@@ -62,8 +100,13 @@ func Load(path string) (*Config, error) {
 	if err != nil {
 		return nil, fmt.Errorf("resolve home directory: %w", err)
 	}
-	for i, r := range cfg.Roots {
-		cfg.Roots[i] = expandTilde(r, home)
+	for i := range cfg.Roots {
+		cfg.Roots[i].Path = expandTilde(cfg.Roots[i].Path, home)
+		// A root without its own max_depth (the common case) inherits the
+		// global one, which has already fallen back to DefaultMaxDepth above.
+		if cfg.Roots[i].MaxDepth <= 0 {
+			cfg.Roots[i].MaxDepth = cfg.MaxDepth
+		}
 	}
 	return &cfg, nil
 }
@@ -84,13 +127,17 @@ const StarterContent = `# wtclean configuration file.
 
 # Root directories to scan for git repositories.
 # Each root is walked recursively. Tilde (~) expands to your home directory.
+# A root may be a plain path (using the global max_depth below) or a mapping
+# with its own max_depth, handy for a broad, shallow directory.
 # Example:
 #   roots:
 #     - ~/src
 #     - ~/work
+#     - path: ~/Downloads
+#       max_depth: 2
 roots:
 
-# Maximum recursion depth from each root.
+# Default maximum recursion depth, applied to every root without its own.
 max_depth: 5
 
 # Directory names to prune during the scan. Any directory whose base name

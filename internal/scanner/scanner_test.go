@@ -34,7 +34,7 @@ func TestScan(t *testing.T) {
 	// Non-repo directory (sibling of repos, walked into and emerges empty).
 	mkDir(t, filepath.Join(root, "notarepo", "deeper"))
 
-	got, err := Scan([]string{root}, 10, nil)
+	got, err := Scan([]Root{{Path: root, MaxDepth: 10}}, nil)
 	if err != nil {
 		t.Fatalf("Scan: %v", err)
 	}
@@ -58,7 +58,7 @@ func TestScanSkipsMatchingDirs(t *testing.T) {
 	// A normal repo outside any skipped dir must still be found.
 	mkDir(t, filepath.Join(root, "keep", ".git"))
 
-	got, err := Scan([]string{root}, 10, []string{"node_modules", "*.egg-info"})
+	got, err := Scan([]Root{{Path: root, MaxDepth: 10}}, []string{"node_modules", "*.egg-info"})
 	if err != nil {
 		t.Fatalf("Scan: %v", err)
 	}
@@ -73,7 +73,7 @@ func TestScanRespectsMaxDepth(t *testing.T) {
 	mkDir(t, filepath.Join(root, "a", "b", "c", "repo", ".git"))
 
 	// Repo is at depth 4 from root. maxDepth 3 should miss it.
-	got, err := Scan([]string{root}, 3, nil)
+	got, err := Scan([]Root{{Path: root, MaxDepth: 3}}, nil)
 	if err != nil {
 		t.Fatalf("Scan: %v", err)
 	}
@@ -82,7 +82,7 @@ func TestScanRespectsMaxDepth(t *testing.T) {
 	}
 
 	// maxDepth 4 should find it.
-	got, err = Scan([]string{root}, 4, nil)
+	got, err = Scan([]Root{{Path: root, MaxDepth: 4}}, nil)
 	if err != nil {
 		t.Fatalf("Scan: %v", err)
 	}
@@ -92,11 +92,33 @@ func TestScanRespectsMaxDepth(t *testing.T) {
 	}
 }
 
+func TestScanAppliesPerRootMaxDepth(t *testing.T) {
+	shallow := t.TempDir()
+	deep := t.TempDir()
+	// Both roots hold a repo at depth 2 (root/a/repo/.git).
+	mkDir(t, filepath.Join(shallow, "a", "repo", ".git"))
+	mkDir(t, filepath.Join(deep, "a", "repo", ".git"))
+
+	// The shallow root is capped at depth 1 so its repo is missed, while the
+	// deep root at depth 2 finds its own. Per-root depth is independent.
+	got, err := Scan([]Root{
+		{Path: shallow, MaxDepth: 1},
+		{Path: deep, MaxDepth: 2},
+	}, nil)
+	if err != nil {
+		t.Fatalf("Scan: %v", err)
+	}
+	want := []string{filepath.Join(deep, "a", "repo")}
+	if !slices.Equal(got, want) {
+		t.Errorf("Scan returned %v, want %v", got, want)
+	}
+}
+
 func TestScanDeduplicatesAcrossRoots(t *testing.T) {
 	parent := t.TempDir()
 	mkDir(t, filepath.Join(parent, "repo", ".git"))
 
-	got, err := Scan([]string{parent, parent}, 5, nil)
+	got, err := Scan([]Root{{Path: parent, MaxDepth: 5}, {Path: parent, MaxDepth: 5}}, nil)
 	if err != nil {
 		t.Fatalf("Scan: %v", err)
 	}
@@ -117,7 +139,7 @@ func TestScanDoesNotFollowSymlinks(t *testing.T) {
 		t.Fatalf("symlink: %v", err)
 	}
 
-	got, err := Scan([]string{root}, 10, nil)
+	got, err := Scan([]Root{{Path: root, MaxDepth: 10}}, nil)
 	if err != nil {
 		t.Fatalf("Scan: %v", err)
 	}
@@ -142,7 +164,7 @@ func TestScanSkipsInaccessibleDirs(t *testing.T) {
 	}
 	t.Cleanup(func() { _ = os.Chmod(blocked, 0o755) })
 
-	got, err := Scan([]string{root}, 10, nil)
+	got, err := Scan([]Root{{Path: root, MaxDepth: 10}}, nil)
 	if err != nil {
 		t.Fatalf("Scan: %v", err)
 	}
