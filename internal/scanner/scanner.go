@@ -10,24 +10,33 @@ import (
 	"sync"
 )
 
-// Scan walks each root up to maxDepth and returns the discovered repository
-// paths, deduplicated and sorted alphabetically. Inaccessible directories
-// (permission denied, transient I/O errors) are skipped silently. Directories
-// whose base name matches any glob in skip (filepath.Match syntax) are pruned
-// before descending, keeping the walk out of large dependency and build trees
-// such as node_modules or target.
-func Scan(roots []string, maxDepth int, skip []string) ([]string, error) {
+// Root is a directory to scan paired with the maximum recursion depth to apply
+// beneath it. Bundling the depth per root lets the caller scan a broad,
+// shallow root (e.g. ~/Downloads at depth 2) alongside a deeply nested one
+// without a single global depth penalising either.
+type Root struct {
+	Path     string
+	MaxDepth int
+}
+
+// Scan walks each root up to its own MaxDepth and returns the discovered
+// repository paths, deduplicated and sorted alphabetically. Inaccessible
+// directories (permission denied, transient I/O errors) are skipped silently.
+// Directories whose base name matches any glob in skip (filepath.Match syntax)
+// are pruned before descending, keeping the walk out of large dependency and
+// build trees such as node_modules or target.
+func Scan(roots []Root, skip []string) ([]string, error) {
 	perRoot := make([][]string, len(roots))
 	errs := make([]error, len(roots))
 	var wg sync.WaitGroup
 	for i, root := range roots {
 		wg.Go(func() {
-			abs, err := filepath.Abs(root)
+			abs, err := filepath.Abs(root.Path)
 			if err != nil {
 				errs[i] = err
 				return
 			}
-			perRoot[i] = walkRoot(abs, maxDepth, skip)
+			perRoot[i] = walkRoot(abs, root.MaxDepth, skip)
 		})
 	}
 	wg.Wait()

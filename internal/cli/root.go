@@ -5,6 +5,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/tnagatomi/wtclean/internal/config"
+	"github.com/tnagatomi/wtclean/internal/scanner"
 	"github.com/tnagatomi/wtclean/internal/tui"
 )
 
@@ -37,11 +38,14 @@ func runTUI(cmd *cobra.Command, args []string) error {
 	// scanned asynchronously, sharing the `r` refresh code path; config is
 	// still loaded synchronously here since a bad config leaves nothing to
 	// show. See docs/adr/0001-async-startup-scan.md.
+	scanRoots := make([]scanner.Root, len(cfg.Roots))
+	for i, r := range cfg.Roots {
+		scanRoots[i] = scanner.Root{Path: r.Path, MaxDepth: r.MaxDepth}
+	}
 	prog := tea.NewProgram(tui.NewScanning(tui.ModelOptions{
-		ConfigPath:  path,
-		ConfigRoots: cfg.Roots,
-		MaxDepth:    cfg.MaxDepth,
-		Skip:        cfg.Skip,
+		ConfigPath: path,
+		ScanRoots:  scanRoots,
+		Skip:       cfg.Skip,
 	}))
 	_, err = prog.Run()
 	return err

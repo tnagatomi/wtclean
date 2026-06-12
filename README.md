@@ -47,11 +47,14 @@ go install github.com/tnagatomi/wtclean/cmd/wtclean@latest
    ```yaml
    # Root directories to scan for git repositories.
    # Each root is walked recursively. Tilde (~) expands to your home directory.
+   # A root may be a plain path, or a mapping with its own max_depth.
    roots:
      - ~/src
      - ~/work
+     - path: ~/Downloads   # a broad, shallow directory
+       max_depth: 2
 
-   # Maximum recursion depth from each root.
+   # Default maximum recursion depth, applied to every root without its own.
    max_depth: 5
 
    # Directory names to prune during the scan (filepath.Match globs, matched
@@ -124,8 +127,8 @@ safe-to-remove: the absence of warnings is not evidence that it is disposable.
 
 | Field       | Description                                                      | Default |
 | ----------- | --------------------------------------------------------------- | ------- |
-| `roots`     | Root directories to scan, walked recursively. `~` expands to home. | —    |
-| `max_depth` | Maximum recursion depth from each root.                         | `5`     |
+| `roots`     | Root directories to scan, walked recursively. `~` expands to home. Each entry is either a path string or a `{path, max_depth}` mapping. | —    |
+| `max_depth` | Default maximum recursion depth, applied to every root that doesn't set its own. | `5`     |
 | `skip`      | Directory base names to prune (`filepath.Match` globs). Speeds up scans by keeping the walk out of git-unmanaged dependency/build trees. | starter list |
 
 > **Note:** The walk already stops at the first `.git`, so dependency trees

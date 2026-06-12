@@ -17,7 +17,7 @@ func TestLoad(t *testing.T) {
 	tests := []struct {
 		name         string
 		content      string
-		wantRoots    []string
+		wantRoots    []Root
 		wantMaxDepth int
 		wantSkip     []string
 		wantErr      string
@@ -30,7 +30,10 @@ roots:
   - ~/relative
 max_depth: 3
 `,
-			wantRoots:    []string{"/abs/path", filepath.Join(home, "relative")},
+			wantRoots: []Root{
+				{Path: "/abs/path", MaxDepth: 3},
+				{Path: filepath.Join(home, "relative"), MaxDepth: 3},
+			},
 			wantMaxDepth: 3,
 		},
 		{
@@ -39,7 +42,7 @@ max_depth: 3
 roots:
   - /only
 `,
-			wantRoots:    []string{"/only"},
+			wantRoots:    []Root{{Path: "/only", MaxDepth: DefaultMaxDepth}},
 			wantMaxDepth: DefaultMaxDepth,
 		},
 		{
@@ -48,8 +51,31 @@ roots:
 roots:
   - "~"
 `,
-			wantRoots:    []string{home},
+			wantRoots:    []Root{{Path: home, MaxDepth: DefaultMaxDepth}},
 			wantMaxDepth: DefaultMaxDepth,
+		},
+		{
+			name: "per-root max_depth overrides global, others inherit",
+			content: `
+roots:
+  - ~/src
+  - path: ~/Downloads
+    max_depth: 2
+max_depth: 5
+`,
+			wantRoots: []Root{
+				{Path: filepath.Join(home, "src"), MaxDepth: 5},
+				{Path: filepath.Join(home, "Downloads"), MaxDepth: 2},
+			},
+			wantMaxDepth: 5,
+		},
+		{
+			name: "root mapping without path errors",
+			content: `
+roots:
+  - max_depth: 2
+`,
+			wantErr: "non-empty path",
 		},
 		{
 			name: "skip globs are parsed",
@@ -60,7 +86,7 @@ skip:
   - node_modules
   - "*.egg-info"
 `,
-			wantRoots:    []string{"/only"},
+			wantRoots:    []Root{{Path: "/only", MaxDepth: DefaultMaxDepth}},
 			wantMaxDepth: DefaultMaxDepth,
 			wantSkip:     []string{"node_modules", "*.egg-info"},
 		},

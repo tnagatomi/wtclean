@@ -9,6 +9,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/tnagatomi/wtclean/internal/repo"
+	"github.com/tnagatomi/wtclean/internal/scanner"
 	"github.com/tnagatomi/wtclean/internal/worktree"
 	"github.com/tnagatomi/wtclean/internal/wtcleanlog"
 )
@@ -188,7 +189,7 @@ func TestRefreshReconcilesSelectedRepoOnScreen2(t *testing.T) {
 }
 
 func TestNewScanningStartsScanningAndInitDispatchesScan(t *testing.T) {
-	m := NewScanning(ModelOptions{ConfigRoots: []string{"/x"}, MaxDepth: 2})
+	m := NewScanning(ModelOptions{ScanRoots: []scanner.Root{{Path: "/x", MaxDepth: 2}}})
 	if !m.scanning {
 		t.Error("NewScanning should start in the scanning state")
 	}
@@ -208,7 +209,7 @@ func TestNewModelInitDoesNotScan(t *testing.T) {
 }
 
 func TestFirstScanFailureShownOnEmptyScreen(t *testing.T) {
-	var m tea.Model = NewScanning(ModelOptions{ConfigRoots: []string{"/x"}})
+	var m tea.Model = NewScanning(ModelOptions{ScanRoots: []scanner.Root{{Path: "/x"}}})
 	m, _ = m.Update(scanCompleteMsg{err: errors.New("walk failed")})
 	view := m.(Model).View().Content
 	if !strings.Contains(view, "scan failed") || !strings.Contains(view, "walk failed") {
@@ -220,7 +221,7 @@ func TestScanCmdRunsDiscoverOverConfiguredRoots(t *testing.T) {
 	// An empty root has no git repositories: discovery should succeed and
 	// return an empty list, proving scanCmd wired repo.Discover to the
 	// configured roots rather than silently doing nothing.
-	m := NewScanning(ModelOptions{ConfigRoots: []string{t.TempDir()}, MaxDepth: 3})
+	m := NewScanning(ModelOptions{ScanRoots: []scanner.Root{{Path: t.TempDir(), MaxDepth: 3}}})
 	cmd := m.scanCmd()
 	if cmd == nil {
 		t.Fatal("scanCmd should return a non-nil tea.Cmd")
