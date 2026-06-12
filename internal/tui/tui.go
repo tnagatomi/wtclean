@@ -63,6 +63,7 @@ type Model struct {
 	deleteTargets        []worktree.Worktree
 	deleteBranchesToggle bool
 	deleteFailures       []deleter.Failure
+	deleting             bool
 
 	fetching   bool
 	fetchError error
