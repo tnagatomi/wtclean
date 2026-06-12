@@ -58,6 +58,11 @@ func (m Model) enterConfirmDelete() Model {
 }
 
 func (m Model) handleConfirmKey(msg tea.KeyPressMsg) (Model, tea.Cmd) {
+	// Once a deletion is in flight the confirm screen is read-only: ignore
+	// every key until deleteCompleteMsg returns us to Screen 2.
+	if m.deleting {
+		return m, nil
+	}
 	switch msg.String() {
 	case "esc", "n":
 		m.screen = screenWorktrees
@@ -66,6 +71,7 @@ func (m Model) handleConfirmKey(msg tea.KeyPressMsg) (Model, tea.Cmd) {
 		m.deleteBranchesToggle = !m.deleteBranchesToggle
 		return m, nil
 	case "y":
+		m.deleting = true
 		return m, m.deleteCmd()
 	}
 	return m, nil
@@ -96,6 +102,7 @@ func (m Model) applyDeleteResult(msg deleteCompleteMsg) (Model, tea.Cmd) {
 		m.repos[m.selectedRepoIdx] = r
 	}
 	m = m.enterWorktrees(m.selectedRepoIdx)
+	m.deleting = false
 	m.deleteFailures = msg.failures
 	return m, logDeleteFailuresCmd(msg.failures)
 }
@@ -141,6 +148,13 @@ func (m Model) confirmDeleteView() string {
 				fmt.Fprintf(&b, "  - %-*s %s (%d)\n", labelWidth, badge.String()+":", warningMessages[badge], n)
 			}
 		}
+	}
+	// While the deletion runs the action keys are inert, so show the
+	// in-progress indicator in place of the help line rather than alongside
+	// it — mirroring the fetch/scan loading affordances on the other screens.
+	if m.deleting {
+		fmt.Fprintf(&b, "\n%s\n", faintStyle.Render("⏳ Deleting..."))
+		return b.String()
 	}
 	help := faintStyle.Render("[y] Confirm    [n] Cancel    [space] toggle branches    [?] help")
 	fmt.Fprintf(&b, "\n%s\n", help)

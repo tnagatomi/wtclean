@@ -159,6 +159,46 @@ func TestYDispatchesDeleteCompleteMsg(t *testing.T) {
 	}
 }
 
+func TestYShowsDeletingIndicator(t *testing.T) {
+	m := confirmScreenModel(t)
+	m, _ = m.Update(tea.KeyPressMsg{Code: 'y', Text: "y"})
+	got := m.(Model)
+	if !got.deleting {
+		t.Fatal("y should mark the model as deleting")
+	}
+	view := got.View().Content
+	if !strings.Contains(view, "Deleting...") {
+		t.Errorf("confirm view should show the deleting indicator: %q", view)
+	}
+	if strings.Contains(view, "[y] Confirm") {
+		t.Errorf("confirm view should hide the action keys while deleting: %q", view)
+	}
+}
+
+func TestKeysIgnoredWhileDeleting(t *testing.T) {
+	m := confirmScreenModel(t)
+	m, _ = m.Update(tea.KeyPressMsg{Code: 'y', Text: "y"})
+	// A second confirm/cancel keypress must not change state while the
+	// deletion is still in flight.
+	m, _ = m.Update(tea.KeyPressMsg{Code: 'n', Text: "n"})
+	got := m.(Model)
+	if got.screen != screenConfirmDelete {
+		t.Fatalf("n should be inert while deleting: screen=%v", got.screen)
+	}
+	if !got.deleting {
+		t.Fatal("model should remain in the deleting state")
+	}
+}
+
+func TestDeleteCompleteClearsDeletingFlag(t *testing.T) {
+	m := confirmScreenModel(t)
+	m, _ = m.Update(tea.KeyPressMsg{Code: 'y', Text: "y"})
+	m, _ = m.Update(deleteCompleteMsg{})
+	if m.(Model).deleting {
+		t.Fatal("deleting flag should be cleared once the deletion completes")
+	}
+}
+
 func TestDeleteCompleteReturnsToScreen2WithFailures(t *testing.T) {
 	m := confirmScreenModel(t)
 	// Bypass the real git Cmd by synthesizing the completion message
