@@ -83,6 +83,7 @@ var helpGroups = []helpGroup{
 			{"g / G", "jump to top / bottom"},
 			{"space", "toggle selection on focused row"},
 			{"s", "select all safe-to-remove worktrees"},
+			{"y", "copy focused branch name to clipboard"},
 			{"/", "start incremental filter"},
 			{"d", "open delete confirmation"},
 			{"r", "fetch this repo and reload"},

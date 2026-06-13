@@ -67,6 +67,11 @@ type Model struct {
 	filterEditing bool
 	filterQuery   string
 
+	// copyNotice is a transient status line shown after a copy attempt on
+	// the worktree screen (success or the branchless no-op reason). It is
+	// cleared by the next keypress on that screen.
+	copyNotice string
+
 	deleteTargets        []worktree.Worktree
 	deleteBranchesToggle bool
 	deleteFailures       []deleter.Failure
@@ -207,6 +212,9 @@ func (m Model) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 			return m, m.scanCmd()
 		}
 	case screenWorktrees:
+		// Any key on this screen clears a lingering copy notice; the "y"
+		// case below then sets a fresh one, so a repeated copy replaces it.
+		m.copyNotice = ""
 		switch msg.String() {
 		case "esc":
 			if m.filterQuery != "" {
@@ -226,6 +234,8 @@ func (m Model) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 			return m.toggleSelection(), nil
 		case "s":
 			return m.toggleSafeSelection(), nil
+		case "y":
+			return m.copyFocusedBranch()
 		case "d":
 			if len(m.selected) > 0 {
 				return m.enterConfirmDelete(), nil
@@ -341,7 +351,7 @@ func (m Model) worktreeView() string {
 	if m.cwdMode {
 		escHint = "[esc] clear/quit"
 	}
-	help := faintStyle.Render("[↑/k] up  [↓/j] down  [space] select  [s] select safe  [/] filter  [d] delete  [r] fetch  [?] help  " + escHint + "  [q] quit")
+	help := faintStyle.Render("[↑/k] up  [↓/j] down  [space] select  [s] select safe  [/] filter  [d] delete  [y] copy branch name  [r] fetch  [?] help  " + escHint + "  [q] quit")
 	body := renderWorktreeTable(m.worktreeTable, m.worktreeVisible)
 	if m.fetching {
 		body += "\n" + faintStyle.Render("⏳ Fetching...")
@@ -351,6 +361,9 @@ func (m Model) worktreeView() string {
 	}
 	if n := len(m.deleteFailures); n > 0 {
 		body += "\n" + faintStyle.Render(fmt.Sprintf("⚠ %d operation(s) failed during last delete", n))
+	}
+	if m.copyNotice != "" {
+		body += "\n" + faintStyle.Render(m.copyNotice)
 	}
 	return fmt.Sprintf("%s\n%s\n%s\n", title, body, help)
 }
@@ -554,6 +567,23 @@ func (m Model) toggleSafeSelection() Model {
 	_, rs := worktreeLayout(m.worktreeVisible, m.selected, m.worktreeMaxPath, m.worktreeMaxBranch, m.worktreeMaxBadges, m.termWidth)
 	m.worktreeTable.SetRows(rs)
 	return m
+}
+
+// copyFocusedBranch copies the full (untruncated) branch name of the focused
+// worktree to the system clipboard via OSC52. Rows without a branch (detached
+// HEAD, bare) are a no-op.
+func (m Model) copyFocusedBranch() (Model, tea.Cmd) {
+	cursor := m.worktreeTable.Cursor()
+	if cursor < 0 || cursor >= len(m.worktreeVisible) {
+		return m, nil
+	}
+	branch := m.worktreeVisible[cursor].Branch
+	if branch == "" {
+		m.copyNotice = "– No branch on this row"
+		return m, nil
+	}
+	m.copyNotice = "✓ Copied branch: " + branch
+	return m, setClipboard(branch)
 }
 
 // tableWidth returns the natural viewport width needed to render every
