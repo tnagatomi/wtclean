@@ -212,6 +212,11 @@ func (m Model) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 			if m.filterQuery != "" {
 				return m.clearFilter(), nil
 			}
+			// In --cwd mode the worktree list is the top screen — there is
+			// no repository list to return to — so esc quits.
+			if m.cwdMode {
+				return m, tea.Quit
+			}
 			m.screen = screenRepos
 			return m, nil
 		case "/":
