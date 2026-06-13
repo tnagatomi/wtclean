@@ -47,6 +47,12 @@ type Model struct {
 	screen          screenID
 	selectedRepoIdx int
 
+	// cwdMode is set when wtclean was launched with --cwd against a single
+	// repository (the one containing the working directory). The repository
+	// list does not exist in this mode, so esc on the worktree screen quits
+	// rather than navigating back, and the help wording is adjusted to match.
+	cwdMode bool
+
 	repoTable   table.Model
 	repoMaxPath int
 
@@ -122,6 +128,17 @@ func NewScanning(opts ModelOptions) Model {
 	return m
 }
 
+// NewSingleRepo builds the model the --cwd entry point starts with: the one
+// repository containing the working directory, opened directly on its worktree
+// list. The repository-list screen is skipped entirely. Init dispatches no
+// scan, so the worktree list is visible on the first frame; the delete-reload
+// and fetch code paths still operate on this single repo unchanged.
+func NewSingleRepo(r repo.Repo, opts ModelOptions) Model {
+	m := NewModel([]repo.Repo{r}, opts)
+	m.cwdMode = true
+	return m.enterWorktrees(0)
+}
+
 // Init dispatches the initial scan when the model was constructed in the
 // scanning state (the production path); a model seeded with repos for tests
 // has nothing to load.
@@ -195,6 +212,11 @@ func (m Model) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 			if m.filterQuery != "" {
 				return m.clearFilter(), nil
 			}
+			// In --cwd mode the worktree list is the top screen — there is
+			// no repository list to return to — so esc quits.
+			if m.cwdMode {
+				return m, tea.Quit
+			}
 			m.screen = screenRepos
 			return m, nil
 		case "/":
@@ -238,7 +260,7 @@ func (m Model) View() tea.View {
 	var content string
 	switch {
 	case m.helpVisible:
-		content = helpView()
+		content = helpView(m.cwdMode)
 	case m.screen == screenConfirmDelete:
 		content = m.confirmDeleteView()
 	case m.screen == screenWorktrees:
@@ -313,7 +335,13 @@ func (m Model) worktreeView() string {
 		titleText += "    /" + m.filterQuery + cursor
 	}
 	title := lipgloss.NewStyle().Bold(true).Render(titleText)
-	help := faintStyle.Render("[↑/k] up  [↓/j] down  [space] select  [s] select safe  [/] filter  [d] delete  [r] fetch  [?] help  [esc] back/clear  [q] quit")
+	// esc clears the filter and then, in --cwd mode, quits (no repository
+	// list to return to); otherwise it navigates back to the repository list.
+	escHint := "[esc] back/clear"
+	if m.cwdMode {
+		escHint = "[esc] clear/quit"
+	}
+	help := faintStyle.Render("[↑/k] up  [↓/j] down  [space] select  [s] select safe  [/] filter  [d] delete  [r] fetch  [?] help  " + escHint + "  [q] quit")
 	body := renderWorktreeTable(m.worktreeTable, m.worktreeVisible)
 	if m.fetching {
 		body += "\n" + faintStyle.Render("⏳ Fetching...")

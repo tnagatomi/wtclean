@@ -6,10 +6,20 @@ import (
 	"charm.land/lipgloss/v2"
 )
 
-// helpView renders the modal help overlay. The content is a single
-// static reference grouped by screen, since the global `?` toggle
-// shows the same overlay regardless of where the user pressed it.
-func helpView() string {
+// worktreeEscDesc and worktreeEscDescCwd are the two phrasings of the
+// worktree-list esc binding. In --cwd mode the worktree list is the top
+// screen, so esc quits rather than returning to a (nonexistent) repository
+// list; helpView swaps the wording to match the cwdMode esc behavior.
+const (
+	worktreeEscDesc    = "clear filter, or back to Screen 1"
+	worktreeEscDescCwd = "clear filter, or quit"
+)
+
+// helpView renders the modal help overlay. The content is a single static
+// reference grouped by screen, since the global `?` toggle shows the same
+// overlay regardless of where the user pressed it. cwdMode adjusts the
+// worktree esc wording to match --cwd mode, where esc quits.
+func helpView(cwdMode bool) string {
 	var b strings.Builder
 	b.WriteString(lipgloss.NewStyle().Bold(true).Render("wtclean — keyboard reference"))
 	b.WriteString("\n\n")
@@ -17,10 +27,14 @@ func helpView() string {
 		b.WriteString(lipgloss.NewStyle().Bold(true).Render(g.title))
 		b.WriteString("\n")
 		for _, e := range g.entries {
+			desc := e.desc
+			if cwdMode && desc == worktreeEscDesc {
+				desc = worktreeEscDescCwd
+			}
 			b.WriteString("  ")
 			b.WriteString(e.keys)
 			b.WriteString(strings.Repeat(" ", helpKeyColumn-len(e.keys)))
-			b.WriteString(e.desc)
+			b.WriteString(desc)
 			b.WriteString("\n")
 		}
 		b.WriteString("\n")
@@ -72,7 +86,7 @@ var helpGroups = []helpGroup{
 			{"/", "start incremental filter"},
 			{"d", "open delete confirmation"},
 			{"r", "fetch this repo and reload"},
-			{"esc", "clear filter, or back to Screen 1"},
+			{"esc", worktreeEscDesc},
 		},
 	},
 	{

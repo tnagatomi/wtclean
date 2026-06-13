@@ -54,6 +54,8 @@ Re-derive the whole repository list from the filesystem: rescan the configured
 roots and re-read every repository's worktrees and badges. Picks up
 repositories and worktrees created or deleted outside the app since startup.
 Local only — it never contacts a remote. The repository-list screen's action.
+Does not exist in _CWD mode_, which has no repository list — only _fetch_
+applies there.
 _Avoid_: reload, rescan
 
 **Fetch**:
@@ -61,6 +63,20 @@ Contact the remote for a single repository, then re-read that one repository's
 state. Network-bound; updates remote-derived badges such as _upstream-gone_.
 The worktree screen's action. Distinct from _refresh_, which is local and
 spans every repository.
+
+### Modes
+
+**CWD mode**:
+The single-repository mode entered with `wtclean --cwd`. Instead of scanning
+the configured roots, it targets the one repository containing the current
+working directory (resolved to that repository's _primary_ worktree, so it
+works from a subdirectory or a linked worktree). It reads no config — it works
+without an `init`'d config file — and opens directly on the worktree screen,
+skipping the repository list. With no repository list there is no _refresh_
+and esc quits rather than navigating back. _Fetch_, selection, and deletion
+behave exactly as in the default mode. Errors out before launching the TUI
+when the working directory is not inside a git repository.
+_Avoid_: local mode, here mode
 
 ### Selection
 
