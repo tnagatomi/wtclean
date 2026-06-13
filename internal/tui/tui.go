@@ -260,7 +260,7 @@ func (m Model) View() tea.View {
 	var content string
 	switch {
 	case m.helpVisible:
-		content = helpView()
+		content = helpView(m.cwdMode)
 	case m.screen == screenConfirmDelete:
 		content = m.confirmDeleteView()
 	case m.screen == screenWorktrees:
@@ -335,7 +335,13 @@ func (m Model) worktreeView() string {
 		titleText += "    /" + m.filterQuery + cursor
 	}
 	title := lipgloss.NewStyle().Bold(true).Render(titleText)
-	help := faintStyle.Render("[↑/k] up  [↓/j] down  [space] select  [s] select safe  [/] filter  [d] delete  [r] fetch  [?] help  [esc] back/clear  [q] quit")
+	// esc clears the filter and then, in --cwd mode, quits (no repository
+	// list to return to); otherwise it navigates back to the repository list.
+	escHint := "[esc] back/clear"
+	if m.cwdMode {
+		escHint = "[esc] clear/quit"
+	}
+	help := faintStyle.Render("[↑/k] up  [↓/j] down  [space] select  [s] select safe  [/] filter  [d] delete  [r] fetch  [?] help  " + escHint + "  [q] quit")
 	body := renderWorktreeTable(m.worktreeTable, m.worktreeVisible)
 	if m.fetching {
 		body += "\n" + faintStyle.Render("⏳ Fetching...")

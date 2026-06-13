@@ -56,6 +56,29 @@ func TestEscQuitsInCwdMode(t *testing.T) {
 	}
 }
 
+func TestFooterWordingInCwdMode(t *testing.T) {
+	m := NewSingleRepo(cwdRepo(), ModelOptions{})
+	view := m.View().Content
+	if strings.Contains(view, "[esc] back/clear") {
+		t.Errorf("cwd-mode footer should not offer 'back', there is no screen to go back to: %q", view)
+	}
+	if !strings.Contains(view, "[esc] clear/quit") {
+		t.Errorf("cwd-mode footer should describe esc as clear/quit: %q", view)
+	}
+}
+
+func TestHelpEscWordingInCwdMode(t *testing.T) {
+	m := tea.Model(NewSingleRepo(cwdRepo(), ModelOptions{}))
+	m, _ = m.Update(tea.KeyPressMsg{Code: '?', Text: "?"}) // open help overlay
+	view := m.(Model).View().Content
+	if strings.Contains(view, "back to Screen 1") {
+		t.Errorf("cwd-mode help should not reference Screen 1: %q", view)
+	}
+	if !strings.Contains(view, "clear filter, or quit") {
+		t.Errorf("cwd-mode help should describe esc as clear filter, or quit: %q", view)
+	}
+}
+
 func TestEscClearsFilterBeforeQuittingInCwdMode(t *testing.T) {
 	m := tea.Model(NewSingleRepo(cwdRepo(), ModelOptions{}))
 	m, _ = m.Update(tea.KeyPressMsg{Code: '/', Text: "/"})
