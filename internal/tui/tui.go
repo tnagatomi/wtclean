@@ -67,6 +67,11 @@ type Model struct {
 	filterEditing bool
 	filterQuery   string
 
+	// copyNotice is a transient status line shown after a copy attempt on
+	// the worktree screen (success or the branchless no-op reason). It is
+	// cleared by the next keypress on that screen.
+	copyNotice string
+
 	deleteTargets        []worktree.Worktree
 	deleteBranchesToggle bool
 	deleteFailures       []deleter.Failure
@@ -568,8 +573,10 @@ func (m Model) copyFocusedBranch() (Model, tea.Cmd) {
 	}
 	branch := m.worktreeVisible[cursor].Branch
 	if branch == "" {
+		m.copyNotice = "– No branch on this row"
 		return m, nil
 	}
+	m.copyNotice = "✓ Copied branch: " + branch
 	return m, setClipboard(branch)
 }
 

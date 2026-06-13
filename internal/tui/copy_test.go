@@ -62,3 +62,25 @@ func TestCopyBranchKeyIsNoOpOnBranchlessRow(t *testing.T) {
 		t.Fatalf("y on a branchless row wrote %q to the clipboard; expected no write", clip.got)
 	}
 }
+
+func TestCopyBranchSetsSuccessNotice(t *testing.T) {
+	stubClipboard(t)
+	m := worktreeScreenModel(t, []worktree.Worktree{
+		{Path: "/repo/wt/a", Branch: "feat-a"},
+	})
+	m, _ = m.Update(tea.KeyPressMsg{Code: 'y', Text: "y"})
+	if got, want := m.(Model).copyNotice, "✓ Copied branch: feat-a"; got != want {
+		t.Fatalf("copyNotice = %q; want %q", got, want)
+	}
+}
+
+func TestCopyBranchSetsNoBranchNoticeOnBranchlessRow(t *testing.T) {
+	stubClipboard(t)
+	m := worktreeScreenModel(t, []worktree.Worktree{
+		{Path: "/repo/wt/detached", Branch: ""},
+	})
+	m, _ = m.Update(tea.KeyPressMsg{Code: 'y', Text: "y"})
+	if got, want := m.(Model).copyNotice, "– No branch on this row"; got != want {
+		t.Fatalf("copyNotice = %q; want %q", got, want)
+	}
+}
