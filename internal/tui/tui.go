@@ -47,6 +47,12 @@ type Model struct {
 	screen          screenID
 	selectedRepoIdx int
 
+	// cwdMode is set when wtclean was launched with --cwd against a single
+	// repository (the one containing the working directory). The repository
+	// list does not exist in this mode, so esc on the worktree screen quits
+	// rather than navigating back, and the help wording is adjusted to match.
+	cwdMode bool
+
 	repoTable   table.Model
 	repoMaxPath int
 
@@ -120,6 +126,17 @@ func NewScanning(opts ModelOptions) Model {
 	m := NewModel(nil, opts)
 	m.scanning = true
 	return m
+}
+
+// NewSingleRepo builds the model the --cwd entry point starts with: the one
+// repository containing the working directory, opened directly on its worktree
+// list. The repository-list screen is skipped entirely. Init dispatches no
+// scan, so the worktree list is visible on the first frame; the delete-reload
+// and fetch code paths still operate on this single repo unchanged.
+func NewSingleRepo(r repo.Repo, opts ModelOptions) Model {
+	m := NewModel([]repo.Repo{r}, opts)
+	m.cwdMode = true
+	return m.enterWorktrees(0)
 }
 
 // Init dispatches the initial scan when the model was constructed in the
