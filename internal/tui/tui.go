@@ -226,6 +226,8 @@ func (m Model) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 			return m.toggleSelection(), nil
 		case "s":
 			return m.toggleSafeSelection(), nil
+		case "y":
+			return m.copyFocusedBranch()
 		case "d":
 			if len(m.selected) > 0 {
 				return m.enterConfirmDelete(), nil
@@ -554,6 +556,21 @@ func (m Model) toggleSafeSelection() Model {
 	_, rs := worktreeLayout(m.worktreeVisible, m.selected, m.worktreeMaxPath, m.worktreeMaxBranch, m.worktreeMaxBadges, m.termWidth)
 	m.worktreeTable.SetRows(rs)
 	return m
+}
+
+// copyFocusedBranch copies the full (untruncated) branch name of the focused
+// worktree to the system clipboard via OSC52. Rows without a branch (detached
+// HEAD, bare) are a no-op.
+func (m Model) copyFocusedBranch() (Model, tea.Cmd) {
+	cursor := m.worktreeTable.Cursor()
+	if cursor < 0 || cursor >= len(m.worktreeVisible) {
+		return m, nil
+	}
+	branch := m.worktreeVisible[cursor].Branch
+	if branch == "" {
+		return m, nil
+	}
+	return m, setClipboard(branch)
 }
 
 // tableWidth returns the natural viewport width needed to render every

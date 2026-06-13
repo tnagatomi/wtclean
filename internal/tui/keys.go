@@ -4,7 +4,13 @@ import (
 	"slices"
 
 	"charm.land/bubbles/v2/table"
+	tea "charm.land/bubbletea/v2"
 )
+
+// setClipboard is a seam over tea.SetClipboard (OSC52) so tests can capture
+// the copied string without depending on bubbletea's unexported clipboard
+// message type.
+var setClipboard = tea.SetClipboard
 
 // emacsTableKeyMap returns the default bubbles/table keymap extended with
 // emacs-style movement aliases (ctrl+n/p for line motion, ctrl+v / alt+v
