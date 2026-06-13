@@ -82,6 +82,23 @@ go install github.com/tnagatomi/wtclean/cmd/wtclean@latest
 3. **Delete confirmation** — review the selection, optionally also delete the
    branches, and confirm.
 
+### Current repository only (`--cwd`)
+
+To clean up just the repository you're standing in, skip the scan entirely:
+
+```sh
+wtclean --cwd
+```
+
+This targets the single repository containing the current directory — resolved
+upward, so it works from a subdirectory or a linked worktree — and opens
+directly on its worktree list, skipping the repository list. It reads **no
+config**, so it works without running `wtclean init` first. The worktree-list,
+fetch (`r`), and delete flows behave exactly as in the default mode; only `esc`
+differs — with no repository list to return to, it quits. If the current
+directory is not inside a git repository, `wtclean --cwd` prints an error and
+exits without launching.
+
 ### Key bindings
 
 Press `?` at any time for the full reference. The essentials:
