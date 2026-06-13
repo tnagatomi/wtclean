@@ -362,6 +362,9 @@ func (m Model) worktreeView() string {
 	if n := len(m.deleteFailures); n > 0 {
 		body += "\n" + faintStyle.Render(fmt.Sprintf("⚠ %d operation(s) failed during last delete", n))
 	}
+	if m.copyNotice != "" {
+		body += "\n" + faintStyle.Render(m.copyNotice)
+	}
 	return fmt.Sprintf("%s\n%s\n%s\n", title, body, help)
 }
 

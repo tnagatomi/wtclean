@@ -1,6 +1,8 @@
 package tui
 
 import (
+	"errors"
+	"strings"
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
@@ -112,5 +114,34 @@ func TestCopyNoticeReplacedByRepeatedCopy(t *testing.T) {
 	m, _ = m.Update(tea.KeyPressMsg{Code: 'y', Text: "y"}) // copies feat-b
 	if got, want := m.(Model).copyNotice, "✓ Copied branch: feat-b"; got != want {
 		t.Fatalf("copyNotice = %q; want %q", got, want)
+	}
+}
+
+func TestCopyNoticeRenderedInView(t *testing.T) {
+	stubClipboard(t)
+	m := worktreeScreenModel(t, []worktree.Worktree{
+		{Path: "/repo/wt/a", Branch: "feat-a"},
+	})
+	m, _ = m.Update(tea.KeyPressMsg{Code: 'y', Text: "y"})
+	if view := m.(Model).View().Content; !strings.Contains(view, "✓ Copied branch: feat-a") {
+		t.Fatalf("view missing copy notice: %q", view)
+	}
+}
+
+func TestCopyNoticeAndFetchErrorRenderTogether(t *testing.T) {
+	stubClipboard(t)
+	m := worktreeScreenModel(t, []worktree.Worktree{
+		{Path: "/repo/wt/a", Branch: "feat-a"},
+	}).(Model)
+	// The copy notice and fetch status are independent lines; setting both
+	// must render both, not have one clobber the other.
+	m.copyNotice = "✓ Copied branch: feat-a"
+	m.fetchError = errors.New("boom")
+	view := m.View().Content
+	if !strings.Contains(view, "✓ Copied branch: feat-a") {
+		t.Errorf("view missing copy notice: %q", view)
+	}
+	if !strings.Contains(view, "boom") {
+		t.Errorf("view missing fetch error: %q", view)
 	}
 }
