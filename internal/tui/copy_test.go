@@ -145,3 +145,22 @@ func TestCopyNoticeAndFetchErrorRenderTogether(t *testing.T) {
 		t.Errorf("view missing fetch error: %q", view)
 	}
 }
+
+func TestWorktreeHelpLineListsCopyKey(t *testing.T) {
+	m := worktreeScreenModel(t, []worktree.Worktree{
+		{Path: "/repo/wt/a", Branch: "feat-a"},
+	})
+	if view := m.(Model).View().Content; !strings.Contains(view, "[y] copy branch name") {
+		t.Fatalf("worktree help line missing copy-branch key: %q", view)
+	}
+}
+
+func TestHelpOverlayDocumentsCopyKey(t *testing.T) {
+	m := worktreeScreenModel(t, []worktree.Worktree{
+		{Path: "/repo/wt/a", Branch: "feat-a"},
+	})
+	m, _ = m.Update(tea.KeyPressMsg{Code: '?', Text: "?"})
+	if view := m.(Model).View().Content; !strings.Contains(view, "copy focused branch name to clipboard") {
+		t.Fatalf("help overlay missing copy-branch entry: %q", view)
+	}
+}

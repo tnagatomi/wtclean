@@ -351,7 +351,7 @@ func (m Model) worktreeView() string {
 	if m.cwdMode {
 		escHint = "[esc] clear/quit"
 	}
-	help := faintStyle.Render("[↑/k] up  [↓/j] down  [space] select  [s] select safe  [/] filter  [d] delete  [r] fetch  [?] help  " + escHint + "  [q] quit")
+	help := faintStyle.Render("[↑/k] up  [↓/j] down  [space] select  [s] select safe  [/] filter  [d] delete  [y] copy branch name  [r] fetch  [?] help  " + escHint + "  [q] quit")
 	body := renderWorktreeTable(m.worktreeTable, m.worktreeVisible)
 	if m.fetching {
 		body += "\n" + faintStyle.Render("⏳ Fetching...")
