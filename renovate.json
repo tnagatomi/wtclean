@@ -5,6 +5,7 @@
   ],
   "semanticCommits": "enabled",
   "semanticCommitScope": null,
+  "minimumReleaseAge": "7 days",
   "postUpdateOptions": [
     "gomodTidy"
   ],
