@@ -84,3 +84,33 @@ func TestCopyBranchSetsNoBranchNoticeOnBranchlessRow(t *testing.T) {
 		t.Fatalf("copyNotice = %q; want %q", got, want)
 	}
 }
+
+func TestCopyNoticeClearedByNextKey(t *testing.T) {
+	stubClipboard(t)
+	m := worktreeScreenModel(t, []worktree.Worktree{
+		{Path: "/repo/wt/a", Branch: "feat-a"},
+		{Path: "/repo/wt/b", Branch: "feat-b"},
+	})
+	m, _ = m.Update(tea.KeyPressMsg{Code: 'y', Text: "y"})
+	if m.(Model).copyNotice == "" {
+		t.Fatal("precondition: y should have set a notice")
+	}
+	m, _ = m.Update(tea.KeyPressMsg{Code: tea.KeyDown})
+	if got := m.(Model).copyNotice; got != "" {
+		t.Fatalf("copyNotice = %q after a non-y key; want it cleared", got)
+	}
+}
+
+func TestCopyNoticeReplacedByRepeatedCopy(t *testing.T) {
+	stubClipboard(t)
+	m := worktreeScreenModel(t, []worktree.Worktree{
+		{Path: "/repo/wt/a", Branch: "feat-a"},
+		{Path: "/repo/wt/b", Branch: "feat-b"},
+	})
+	m, _ = m.Update(tea.KeyPressMsg{Code: 'y', Text: "y"}) // copies feat-a
+	m, _ = m.Update(tea.KeyPressMsg{Code: tea.KeyDown})    // move to feat-b
+	m, _ = m.Update(tea.KeyPressMsg{Code: 'y', Text: "y"}) // copies feat-b
+	if got, want := m.(Model).copyNotice, "✓ Copied branch: feat-b"; got != want {
+		t.Fatalf("copyNotice = %q; want %q", got, want)
+	}
+}

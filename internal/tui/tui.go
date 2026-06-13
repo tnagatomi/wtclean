@@ -212,6 +212,9 @@ func (m Model) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 			return m, m.scanCmd()
 		}
 	case screenWorktrees:
+		// Any key on this screen clears a lingering copy notice; the "y"
+		// case below then sets a fresh one, so a repeated copy replaces it.
+		m.copyNotice = ""
 		switch msg.String() {
 		case "esc":
 			if m.filterQuery != "" {
